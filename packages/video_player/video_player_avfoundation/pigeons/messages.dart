@@ -31,6 +31,13 @@ class VolumeMessage {
   double volume;
 }
 
+class AudioTrackMessage {
+  AudioTrackMessage(this.textureId, this.audioTrackNames, this.index);
+  int textureId;
+  List<String?>? audioTrackNames;
+  int? index;
+}
+
 class PlaybackSpeedMessage {
   PlaybackSpeedMessage(this.textureId, this.speed);
   int textureId;
@@ -49,7 +56,22 @@ class CreateMessage {
   String? uri;
   String? packageName;
   String? formatHint;
+  String? name;
+  String? audioTrackName;
   Map<String?, String?> httpHeaders;
+}
+
+class HlsStreamMessage {
+  HlsStreamMessage({required this.uri, this.name, required this.httpHeaders});
+  String uri;
+  String? name;
+  String? audioTrackName;
+  Map<String?, String?> httpHeaders;
+}
+
+class IsHlsAvailableOfflineMessage {
+  IsHlsAvailableOfflineMessage(this.isAvailableOffline);
+  int isAvailableOffline;
 }
 
 class MixWithOthersMessage {
@@ -63,14 +85,26 @@ abstract class AVFoundationVideoPlayerApi {
   void initialize();
   @ObjCSelector('create:')
   TextureMessage create(CreateMessage msg);
+  @ObjCSelector('createWithHlsCachingSupport:')
+  TextureMessage createWithHlsCachingSupport(CreateMessage msg);
   @ObjCSelector('dispose:')
   void dispose(TextureMessage msg);
   @ObjCSelector('setLooping:')
   void setLooping(LoopingMessage msg);
   @ObjCSelector('setVolume:')
   void setVolume(VolumeMessage msg);
+  @ObjCSelector('getAvailableAudioTracksList:')
+  AudioTrackMessage getAvailableAudioTracksList(TextureMessage msg);
+  @ObjCSelector('setActiveAudioTrack:')
+  void setActiveAudioTrack(AudioTrackMessage msg);
+  @ObjCSelector('setActiveAudioTrackByIndex:')
+  void setActiveAudioTrackByIndex(AudioTrackMessage msg);
   @ObjCSelector('setPlaybackSpeed:')
   void setPlaybackSpeed(PlaybackSpeedMessage msg);
+  @ObjCSelector('startHlsStreamCachingIfNeeded:')
+  void startHlsStreamCachingIfNeeded(HlsStreamMessage msg);
+  @ObjCSelector('isHlsAvailableOffline:')
+  IsHlsAvailableOfflineMessage isHlsAvailableOffline(HlsStreamMessage msg);
   @ObjCSelector('play:')
   void play(TextureMessage msg);
   @ObjCSelector('position:')

@@ -47,6 +47,12 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
 - (NSArray *)toList;
 @end
 
+@interface FVPAudioTrackMessage ()
++ (FVPAudioTrackMessage *)fromList:(NSArray *)list;
++ (nullable FVPAudioTrackMessage *)nullableFromList:(NSArray *)list;
+- (NSArray *)toList;
+@end
+
 @interface FVPPlaybackSpeedMessage ()
 + (FVPPlaybackSpeedMessage *)fromList:(NSArray *)list;
 + (nullable FVPPlaybackSpeedMessage *)nullableFromList:(NSArray *)list;
@@ -65,6 +71,18 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
 - (NSArray *)toList;
 @end
 
+@interface FVPHlsStreamMessage ()
++ (FVPHlsStreamMessage *)fromList:(NSArray *)list;
++ (nullable FVPHlsStreamMessage *)nullableFromList:(NSArray *)list;
+- (NSArray *)toList;
+@end
+
+@interface FVPIsHlsAvailableOfflineMessage ()
++ (FVPIsHlsAvailableOfflineMessage *)fromList:(NSArray *)list;
++ (nullable FVPIsHlsAvailableOfflineMessage *)nullableFromList:(NSArray *)list;
+- (NSArray *)toList;
+@end
+
 @interface FVPMixWithOthersMessage ()
 + (FVPMixWithOthersMessage *)fromList:(NSArray *)list;
 + (nullable FVPMixWithOthersMessage *)nullableFromList:(NSArray *)list;
@@ -73,7 +91,7 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
 
 @implementation FVPTextureMessage
 + (instancetype)makeWithTextureId:(NSNumber *)textureId {
-  FVPTextureMessage *pigeonResult = [[FVPTextureMessage alloc] init];
+  FVPTextureMessage* pigeonResult = [[FVPTextureMessage alloc] init];
   pigeonResult.textureId = textureId;
   return pigeonResult;
 }
@@ -94,8 +112,9 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
 @end
 
 @implementation FVPLoopingMessage
-+ (instancetype)makeWithTextureId:(NSNumber *)textureId isLooping:(NSNumber *)isLooping {
-  FVPLoopingMessage *pigeonResult = [[FVPLoopingMessage alloc] init];
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    isLooping:(NSNumber *)isLooping {
+  FVPLoopingMessage* pigeonResult = [[FVPLoopingMessage alloc] init];
   pigeonResult.textureId = textureId;
   pigeonResult.isLooping = isLooping;
   return pigeonResult;
@@ -120,8 +139,9 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
 @end
 
 @implementation FVPVolumeMessage
-+ (instancetype)makeWithTextureId:(NSNumber *)textureId volume:(NSNumber *)volume {
-  FVPVolumeMessage *pigeonResult = [[FVPVolumeMessage alloc] init];
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    volume:(NSNumber *)volume {
+  FVPVolumeMessage* pigeonResult = [[FVPVolumeMessage alloc] init];
   pigeonResult.textureId = textureId;
   pigeonResult.volume = volume;
   return pigeonResult;
@@ -145,9 +165,40 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
 }
 @end
 
+@implementation FVPAudioTrackMessage
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    audioTrackNames:(nullable NSArray<NSString *> *)audioTrackNames
+    index:(nullable NSNumber *)index {
+  FVPAudioTrackMessage* pigeonResult = [[FVPAudioTrackMessage alloc] init];
+  pigeonResult.textureId = textureId;
+  pigeonResult.audioTrackNames = audioTrackNames;
+  pigeonResult.index = index;
+  return pigeonResult;
+}
++ (FVPAudioTrackMessage *)fromList:(NSArray *)list {
+  FVPAudioTrackMessage *pigeonResult = [[FVPAudioTrackMessage alloc] init];
+  pigeonResult.textureId = GetNullableObjectAtIndex(list, 0);
+  NSAssert(pigeonResult.textureId != nil, @"");
+  pigeonResult.audioTrackNames = GetNullableObjectAtIndex(list, 1);
+  pigeonResult.index = GetNullableObjectAtIndex(list, 2);
+  return pigeonResult;
+}
++ (nullable FVPAudioTrackMessage *)nullableFromList:(NSArray *)list {
+  return (list) ? [FVPAudioTrackMessage fromList:list] : nil;
+}
+- (NSArray *)toList {
+  return @[
+    (self.textureId ?: [NSNull null]),
+    (self.audioTrackNames ?: [NSNull null]),
+    (self.index ?: [NSNull null]),
+  ];
+}
+@end
+
 @implementation FVPPlaybackSpeedMessage
-+ (instancetype)makeWithTextureId:(NSNumber *)textureId speed:(NSNumber *)speed {
-  FVPPlaybackSpeedMessage *pigeonResult = [[FVPPlaybackSpeedMessage alloc] init];
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    speed:(NSNumber *)speed {
+  FVPPlaybackSpeedMessage* pigeonResult = [[FVPPlaybackSpeedMessage alloc] init];
   pigeonResult.textureId = textureId;
   pigeonResult.speed = speed;
   return pigeonResult;
@@ -172,8 +223,9 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
 @end
 
 @implementation FVPPositionMessage
-+ (instancetype)makeWithTextureId:(NSNumber *)textureId position:(NSNumber *)position {
-  FVPPositionMessage *pigeonResult = [[FVPPositionMessage alloc] init];
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    position:(NSNumber *)position {
+  FVPPositionMessage* pigeonResult = [[FVPPositionMessage alloc] init];
   pigeonResult.textureId = textureId;
   pigeonResult.position = position;
   return pigeonResult;
@@ -199,15 +251,19 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
 
 @implementation FVPCreateMessage
 + (instancetype)makeWithAsset:(nullable NSString *)asset
-                          uri:(nullable NSString *)uri
-                  packageName:(nullable NSString *)packageName
-                   formatHint:(nullable NSString *)formatHint
-                  httpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders {
-  FVPCreateMessage *pigeonResult = [[FVPCreateMessage alloc] init];
+    uri:(nullable NSString *)uri
+    packageName:(nullable NSString *)packageName
+    formatHint:(nullable NSString *)formatHint
+    name:(nullable NSString *)name
+    audioTrackName:(nullable NSString *)audioTrackName
+    httpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders {
+  FVPCreateMessage* pigeonResult = [[FVPCreateMessage alloc] init];
   pigeonResult.asset = asset;
   pigeonResult.uri = uri;
   pigeonResult.packageName = packageName;
   pigeonResult.formatHint = formatHint;
+  pigeonResult.name = name;
+  pigeonResult.audioTrackName = audioTrackName;
   pigeonResult.httpHeaders = httpHeaders;
   return pigeonResult;
 }
@@ -217,7 +273,9 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
   pigeonResult.uri = GetNullableObjectAtIndex(list, 1);
   pigeonResult.packageName = GetNullableObjectAtIndex(list, 2);
   pigeonResult.formatHint = GetNullableObjectAtIndex(list, 3);
-  pigeonResult.httpHeaders = GetNullableObjectAtIndex(list, 4);
+  pigeonResult.name = GetNullableObjectAtIndex(list, 4);
+  pigeonResult.audioTrackName = GetNullableObjectAtIndex(list, 5);
+  pigeonResult.httpHeaders = GetNullableObjectAtIndex(list, 6);
   NSAssert(pigeonResult.httpHeaders != nil, @"");
   return pigeonResult;
 }
@@ -230,14 +288,73 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
     (self.uri ?: [NSNull null]),
     (self.packageName ?: [NSNull null]),
     (self.formatHint ?: [NSNull null]),
+    (self.name ?: [NSNull null]),
+    (self.audioTrackName ?: [NSNull null]),
     (self.httpHeaders ?: [NSNull null]),
+  ];
+}
+@end
+
+@implementation FVPHlsStreamMessage
++ (instancetype)makeWithUri:(NSString *)uri
+    name:(nullable NSString *)name
+    audioTrackName:(nullable NSString *)audioTrackName
+    httpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders {
+  FVPHlsStreamMessage* pigeonResult = [[FVPHlsStreamMessage alloc] init];
+  pigeonResult.uri = uri;
+  pigeonResult.name = name;
+  pigeonResult.audioTrackName = audioTrackName;
+  pigeonResult.httpHeaders = httpHeaders;
+  return pigeonResult;
+}
++ (FVPHlsStreamMessage *)fromList:(NSArray *)list {
+  FVPHlsStreamMessage *pigeonResult = [[FVPHlsStreamMessage alloc] init];
+  pigeonResult.uri = GetNullableObjectAtIndex(list, 0);
+  NSAssert(pigeonResult.uri != nil, @"");
+  pigeonResult.name = GetNullableObjectAtIndex(list, 1);
+  pigeonResult.audioTrackName = GetNullableObjectAtIndex(list, 2);
+  pigeonResult.httpHeaders = GetNullableObjectAtIndex(list, 3);
+  NSAssert(pigeonResult.httpHeaders != nil, @"");
+  return pigeonResult;
+}
++ (nullable FVPHlsStreamMessage *)nullableFromList:(NSArray *)list {
+  return (list) ? [FVPHlsStreamMessage fromList:list] : nil;
+}
+- (NSArray *)toList {
+  return @[
+    (self.uri ?: [NSNull null]),
+    (self.name ?: [NSNull null]),
+    (self.audioTrackName ?: [NSNull null]),
+    (self.httpHeaders ?: [NSNull null]),
+  ];
+}
+@end
+
+@implementation FVPIsHlsAvailableOfflineMessage
++ (instancetype)makeWithIsAvailableOffline:(NSNumber *)isAvailableOffline {
+  FVPIsHlsAvailableOfflineMessage* pigeonResult = [[FVPIsHlsAvailableOfflineMessage alloc] init];
+  pigeonResult.isAvailableOffline = isAvailableOffline;
+  return pigeonResult;
+}
++ (FVPIsHlsAvailableOfflineMessage *)fromList:(NSArray *)list {
+  FVPIsHlsAvailableOfflineMessage *pigeonResult = [[FVPIsHlsAvailableOfflineMessage alloc] init];
+  pigeonResult.isAvailableOffline = GetNullableObjectAtIndex(list, 0);
+  NSAssert(pigeonResult.isAvailableOffline != nil, @"");
+  return pigeonResult;
+}
++ (nullable FVPIsHlsAvailableOfflineMessage *)nullableFromList:(NSArray *)list {
+  return (list) ? [FVPIsHlsAvailableOfflineMessage fromList:list] : nil;
+}
+- (NSArray *)toList {
+  return @[
+    (self.isAvailableOffline ?: [NSNull null]),
   ];
 }
 @end
 
 @implementation FVPMixWithOthersMessage
 + (instancetype)makeWithMixWithOthers:(NSNumber *)mixWithOthers {
-  FVPMixWithOthersMessage *pigeonResult = [[FVPMixWithOthersMessage alloc] init];
+  FVPMixWithOthersMessage* pigeonResult = [[FVPMixWithOthersMessage alloc] init];
   pigeonResult.mixWithOthers = mixWithOthers;
   return pigeonResult;
 }
@@ -262,19 +379,25 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
 @implementation FVPAVFoundationVideoPlayerApiCodecReader
 - (nullable id)readValueOfType:(UInt8)type {
   switch (type) {
-    case 128:
+    case 128: 
+      return [FVPAudioTrackMessage fromList:[self readValue]];
+    case 129: 
       return [FVPCreateMessage fromList:[self readValue]];
-    case 129:
+    case 130: 
+      return [FVPHlsStreamMessage fromList:[self readValue]];
+    case 131: 
+      return [FVPIsHlsAvailableOfflineMessage fromList:[self readValue]];
+    case 132: 
       return [FVPLoopingMessage fromList:[self readValue]];
-    case 130:
+    case 133: 
       return [FVPMixWithOthersMessage fromList:[self readValue]];
-    case 131:
+    case 134: 
       return [FVPPlaybackSpeedMessage fromList:[self readValue]];
-    case 132:
+    case 135: 
       return [FVPPositionMessage fromList:[self readValue]];
-    case 133:
+    case 136: 
       return [FVPTextureMessage fromList:[self readValue]];
-    case 134:
+    case 137: 
       return [FVPVolumeMessage fromList:[self readValue]];
     default:
       return [super readValueOfType:type];
@@ -286,26 +409,35 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
 @end
 @implementation FVPAVFoundationVideoPlayerApiCodecWriter
 - (void)writeValue:(id)value {
-  if ([value isKindOfClass:[FVPCreateMessage class]]) {
+  if ([value isKindOfClass:[FVPAudioTrackMessage class]]) {
     [self writeByte:128];
     [self writeValue:[value toList]];
-  } else if ([value isKindOfClass:[FVPLoopingMessage class]]) {
+  } else if ([value isKindOfClass:[FVPCreateMessage class]]) {
     [self writeByte:129];
     [self writeValue:[value toList]];
-  } else if ([value isKindOfClass:[FVPMixWithOthersMessage class]]) {
+  } else if ([value isKindOfClass:[FVPHlsStreamMessage class]]) {
     [self writeByte:130];
     [self writeValue:[value toList]];
-  } else if ([value isKindOfClass:[FVPPlaybackSpeedMessage class]]) {
+  } else if ([value isKindOfClass:[FVPIsHlsAvailableOfflineMessage class]]) {
     [self writeByte:131];
     [self writeValue:[value toList]];
-  } else if ([value isKindOfClass:[FVPPositionMessage class]]) {
+  } else if ([value isKindOfClass:[FVPLoopingMessage class]]) {
     [self writeByte:132];
     [self writeValue:[value toList]];
-  } else if ([value isKindOfClass:[FVPTextureMessage class]]) {
+  } else if ([value isKindOfClass:[FVPMixWithOthersMessage class]]) {
     [self writeByte:133];
     [self writeValue:[value toList]];
-  } else if ([value isKindOfClass:[FVPVolumeMessage class]]) {
+  } else if ([value isKindOfClass:[FVPPlaybackSpeedMessage class]]) {
     [self writeByte:134];
+    [self writeValue:[value toList]];
+  } else if ([value isKindOfClass:[FVPPositionMessage class]]) {
+    [self writeByte:135];
+    [self writeValue:[value toList]];
+  } else if ([value isKindOfClass:[FVPTextureMessage class]]) {
+    [self writeByte:136];
+    [self writeValue:[value toList]];
+  } else if ([value isKindOfClass:[FVPVolumeMessage class]]) {
+    [self writeByte:137];
     [self writeValue:[value toList]];
   } else {
     [super writeValue:value];
@@ -328,25 +460,21 @@ NSObject<FlutterMessageCodec> *FVPAVFoundationVideoPlayerApiGetCodec(void) {
   static FlutterStandardMessageCodec *sSharedObject = nil;
   static dispatch_once_t sPred = 0;
   dispatch_once(&sPred, ^{
-    FVPAVFoundationVideoPlayerApiCodecReaderWriter *readerWriter =
-        [[FVPAVFoundationVideoPlayerApiCodecReaderWriter alloc] init];
+    FVPAVFoundationVideoPlayerApiCodecReaderWriter *readerWriter = [[FVPAVFoundationVideoPlayerApiCodecReaderWriter alloc] init];
     sSharedObject = [FlutterStandardMessageCodec codecWithReaderWriter:readerWriter];
   });
   return sSharedObject;
 }
 
-void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMessenger,
-                                        NSObject<FVPAVFoundationVideoPlayerApi> *api) {
+void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMessenger, NSObject<FVPAVFoundationVideoPlayerApi> *api) {
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:
-               @"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.initialize"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.initialize"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert([api respondsToSelector:@selector(initialize:)],
-                @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(initialize:)",
-                api);
+      NSCAssert([api respondsToSelector:@selector(initialize:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(initialize:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         FlutterError *error;
         [api initialize:&error];
@@ -357,16 +485,13 @@ void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
     }
   }
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:
-               @"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.create"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.create"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert(
-          [api respondsToSelector:@selector(create:error:)],
-          @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(create:error:)",
-          api);
+      NSCAssert([api respondsToSelector:@selector(create:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(create:error:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray *args = message;
         FVPCreateMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
@@ -379,16 +504,32 @@ void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
     }
   }
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:
-               @"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.dispose"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.createWithHlsCachingSupport"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert(
-          [api respondsToSelector:@selector(dispose:error:)],
-          @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(dispose:error:)",
-          api);
+      NSCAssert([api respondsToSelector:@selector(createWithHlsCachingSupport:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(createWithHlsCachingSupport:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FVPCreateMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        FVPTextureMessage *output = [api createWithHlsCachingSupport:arg_msg error:&error];
+        callback(wrapResult(output, error));
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.dispose"
+        binaryMessenger:binaryMessenger
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(dispose:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(dispose:error:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray *args = message;
         FVPTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
@@ -401,16 +542,13 @@ void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
     }
   }
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:
-               @"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setLooping"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setLooping"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert(
-          [api respondsToSelector:@selector(setLooping:error:)],
-          @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setLooping:error:)",
-          api);
+      NSCAssert([api respondsToSelector:@selector(setLooping:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setLooping:error:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray *args = message;
         FVPLoopingMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
@@ -423,16 +561,13 @@ void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
     }
   }
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:
-               @"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setVolume"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setVolume"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert(
-          [api respondsToSelector:@selector(setVolume:error:)],
-          @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setVolume:error:)",
-          api);
+      NSCAssert([api respondsToSelector:@selector(setVolume:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setVolume:error:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray *args = message;
         FVPVolumeMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
@@ -445,16 +580,70 @@ void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
     }
   }
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi."
-                        @"setPlaybackSpeed"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.getAvailableAudioTracksList"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert([api respondsToSelector:@selector(setPlaybackSpeed:error:)],
-                @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to "
-                @"@selector(setPlaybackSpeed:error:)",
-                api);
+      NSCAssert([api respondsToSelector:@selector(getAvailableAudioTracksList:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(getAvailableAudioTracksList:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FVPTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        FVPAudioTrackMessage *output = [api getAvailableAudioTracksList:arg_msg error:&error];
+        callback(wrapResult(output, error));
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setActiveAudioTrack"
+        binaryMessenger:binaryMessenger
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(setActiveAudioTrack:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setActiveAudioTrack:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FVPAudioTrackMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api setActiveAudioTrack:arg_msg error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setActiveAudioTrackByIndex"
+        binaryMessenger:binaryMessenger
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(setActiveAudioTrackByIndex:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setActiveAudioTrackByIndex:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FVPAudioTrackMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api setActiveAudioTrackByIndex:arg_msg error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setPlaybackSpeed"
+        binaryMessenger:binaryMessenger
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(setPlaybackSpeed:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setPlaybackSpeed:error:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray *args = message;
         FVPPlaybackSpeedMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
@@ -467,15 +656,51 @@ void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
     }
   }
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:
-               @"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.play"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.startHlsStreamCachingIfNeeded"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert([api respondsToSelector:@selector(play:error:)],
-                @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(play:error:)",
-                api);
+      NSCAssert([api respondsToSelector:@selector(startHlsStreamCachingIfNeeded:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(startHlsStreamCachingIfNeeded:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FVPHlsStreamMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api startHlsStreamCachingIfNeeded:arg_msg error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.isHlsAvailableOffline"
+        binaryMessenger:binaryMessenger
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(isHlsAvailableOffline:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(isHlsAvailableOffline:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FVPHlsStreamMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        FVPIsHlsAvailableOfflineMessage *output = [api isHlsAvailableOffline:arg_msg error:&error];
+        callback(wrapResult(output, error));
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.play"
+        binaryMessenger:binaryMessenger
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(play:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(play:error:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray *args = message;
         FVPTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
@@ -488,16 +713,13 @@ void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
     }
   }
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:
-               @"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.position"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.position"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert(
-          [api respondsToSelector:@selector(position:error:)],
-          @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(position:error:)",
-          api);
+      NSCAssert([api respondsToSelector:@selector(position:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(position:error:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray *args = message;
         FVPTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
@@ -510,39 +732,32 @@ void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
     }
   }
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:
-               @"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.seekTo"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.seekTo"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert([api respondsToSelector:@selector(seekTo:completion:)],
-                @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to "
-                @"@selector(seekTo:completion:)",
-                api);
+      NSCAssert([api respondsToSelector:@selector(seekTo:completion:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(seekTo:completion:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray *args = message;
         FVPPositionMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
-        [api seekTo:arg_msg
-            completion:^(FlutterError *_Nullable error) {
-              callback(wrapResult(nil, error));
-            }];
+        [api seekTo:arg_msg completion:^(FlutterError *_Nullable error) {
+          callback(wrapResult(nil, error));
+        }];
       }];
     } else {
       [channel setMessageHandler:nil];
     }
   }
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:
-               @"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.pause"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.pause"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert(
-          [api respondsToSelector:@selector(pause:error:)],
-          @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(pause:error:)",
-          api);
+      NSCAssert([api respondsToSelector:@selector(pause:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(pause:error:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray *args = message;
         FVPTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
@@ -555,16 +770,13 @@ void FVPAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
     }
   }
   {
-    FlutterBasicMessageChannel *channel = [[FlutterBasicMessageChannel alloc]
-           initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi."
-                        @"setMixWithOthers"
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setMixWithOthers"
         binaryMessenger:binaryMessenger
-                  codec:FVPAVFoundationVideoPlayerApiGetCodec()];
+        codec:FVPAVFoundationVideoPlayerApiGetCodec()];
     if (api) {
-      NSCAssert([api respondsToSelector:@selector(setMixWithOthers:error:)],
-                @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to "
-                @"@selector(setMixWithOthers:error:)",
-                api);
+      NSCAssert([api respondsToSelector:@selector(setMixWithOthers:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setMixWithOthers:error:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray *args = message;
         FVPMixWithOthersMessage *arg_msg = GetNullableObjectAtIndex(args, 0);

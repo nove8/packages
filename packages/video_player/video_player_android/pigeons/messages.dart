@@ -30,6 +30,13 @@ class VolumeMessage {
   double volume;
 }
 
+class AudioTrackMessage {
+  AudioTrackMessage(this.textureId, this.audioTrackNames, this.index);
+  int textureId;
+  List<String?>? audioTrackNames;
+  int? index;
+}
+
 class PlaybackSpeedMessage {
   PlaybackSpeedMessage(this.textureId, this.speed);
   int textureId;
@@ -48,6 +55,7 @@ class CreateMessage {
   String? uri;
   String? packageName;
   String? formatHint;
+  String? audioTrackName;
   Map<String?, String?> httpHeaders;
 }
 
@@ -64,6 +72,9 @@ abstract class AndroidVideoPlayerApi {
   void setLooping(LoopingMessage msg);
   void setVolume(VolumeMessage msg);
   void setPlaybackSpeed(PlaybackSpeedMessage msg);
+  AudioTrackMessage getAvailableAudioTracksList(TextureMessage msg);
+  void setActiveAudioTrack(AudioTrackMessage msg);
+  void setActiveAudioTrackByIndex(AudioTrackMessage msg);
   void play(TextureMessage msg);
   PositionMessage position(TextureMessage msg);
   void seekTo(PositionMessage msg);

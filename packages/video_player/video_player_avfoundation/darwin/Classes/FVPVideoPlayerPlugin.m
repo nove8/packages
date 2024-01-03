@@ -4,6 +4,7 @@
 
 #import "FVPVideoPlayerPlugin.h"
 #import "FVPVideoPlayerPlugin_Test.h"
+#import "AssetPersistenceManager.h"
 
 #import <AVFoundation/AVFoundation.h>
 #import <GLKit/GLKit.h>
@@ -90,6 +91,7 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeSt
 @property(nonatomic, readonly) BOOL disposed;
 @property(nonatomic, readonly) BOOL isPlaying;
 @property(nonatomic) BOOL isLooping;
+@property(nonatomic) double internalPlaybackSpeed;
 @property(nonatomic, readonly) BOOL isInitialized;
 // TODO(stuartmorgan): Extract and abstract the display link to remove all the display-link-related
 // ifdefs from this file.
@@ -105,8 +107,14 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeSt
 - (instancetype)initWithURL:(NSURL *)url
                frameUpdater:(FVPFrameUpdater *)frameUpdater
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
+              audioTrackName:(NSString *)audioTrackName
               playerFactory:(id<FVPPlayerFactory>)playerFactory
                   registrar:(NSObject<FlutterPluginRegistrar> *)registrar;
+- (instancetype)initWithURLAsset:(AVURLAsset *)urlAsset
+                    frameUpdater:(FVPFrameUpdater *)frameUpdater
+                  audioTrackName:(NSString *)audioTrackName
+                   playerFactory:(id<FVPPlayerFactory>)playerFactory
+                       registrar:(NSObject<FlutterPluginRegistrar> *)registrar;
 @end
 
 static void *timeRangeContext = &timeRangeContext;
@@ -119,6 +127,7 @@ static void *rateContext = &rateContext;
 @implementation FVPVideoPlayer
 - (instancetype)initWithAsset:(NSString *)asset
                  frameUpdater:(FVPFrameUpdater *)frameUpdater
+               audioTrackName:(NSString *)audioTrackName
                 playerFactory:(id<FVPPlayerFactory>)playerFactory
                     registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   NSString *path = [[NSBundle mainBundle] pathForResource:asset ofType:nil];
@@ -132,6 +141,7 @@ static void *rateContext = &rateContext;
   return [self initWithURL:[NSURL fileURLWithPath:path]
               frameUpdater:frameUpdater
                httpHeaders:@{}
+            audioTrackName:audioTrackName
              playerFactory:playerFactory
                  registrar:registrar];
 }
@@ -276,6 +286,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 - (instancetype)initWithURL:(NSURL *)url
                frameUpdater:(FVPFrameUpdater *)frameUpdater
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
+              audioTrackName:(NSString *)audioTrackName
               playerFactory:(id<FVPPlayerFactory>)playerFactory
                   registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   NSDictionary<NSString *, id> *options = nil;
@@ -283,15 +294,29 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     options = @{@"AVURLAssetHTTPHeaderFieldsKey" : headers};
   }
   AVURLAsset *urlAsset = [AVURLAsset URLAssetWithURL:url options:options];
+  return [self initWithURLAsset:urlAsset
+                   frameUpdater:frameUpdater
+                 audioTrackName:audioTrackName
+                  playerFactory:playerFactory
+                      registrar:registrar];
+}
+
+- (instancetype)initWithURLAsset:(AVURLAsset *)urlAsset
+                    frameUpdater:(FVPFrameUpdater *)frameUpdater
+                  audioTrackName:(NSString *)audioTrackName
+                   playerFactory:(id<FVPPlayerFactory>)playerFactory
+             registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   AVPlayerItem *item = [AVPlayerItem playerItemWithAsset:urlAsset];
   return [self initWithPlayerItem:item
                      frameUpdater:frameUpdater
+                   audioTrackName:audioTrackName
                     playerFactory:playerFactory
                         registrar:registrar];
 }
 
 - (instancetype)initWithPlayerItem:(AVPlayerItem *)item
                       frameUpdater:(FVPFrameUpdater *)frameUpdater
+                    audioTrackName:(NSString *)audioTrackName
                      playerFactory:(id<FVPPlayerFactory>)playerFactory
                          registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   self = [super init];
@@ -328,6 +353,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     }
   };
 
+  [self setInitialAudioTrack:item audioTrackName:audioTrackName];
+
   _player = [playerFactory playerWithPlayerItem:item];
   _player.actionAtItemEnd = AVPlayerActionAtItemEndNone;
 
@@ -346,6 +373,28 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   [asset loadValuesAsynchronouslyForKeys:@[ @"tracks" ] completionHandler:assetCompletionHandler];
 
   return self;
+}
+
+- (void)setInitialAudioTrack:(AVPlayerItem *)item audioTrackName:(NSString *)audioTrackName {
+  AVMediaSelectionGroup *audioSelectionGroup = [[item asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
+  if(audioSelectionGroup != nil) {
+    NSArray* audioSelectionGroupOptions = audioSelectionGroup.options;
+    // Select the first audio track as a default fallback option
+    [item selectMediaOption:audioSelectionGroupOptions[0] inMediaSelectionGroup: audioSelectionGroup];
+    if(audioTrackName != nil) {
+      for(AVMediaSelectionOption* audioTrack in audioSelectionGroupOptions) {
+        NSString* localAudioTrackName = audioTrack.locale.languageCode;
+        if(audioTrack.locale.languageCode == nil) {
+          localAudioTrackName = @"und"; // as defined in ISO 639-2
+        }
+
+        if([audioTrackName isEqualToString:localAudioTrackName]) {
+          [item selectMediaOption:audioTrack inMediaSelectionGroup: audioSelectionGroup];
+          break;
+        }
+      }
+    }
+  }
 }
 
 - (void)observeValueForKeyPath:(NSString *)path
@@ -409,6 +458,15 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     if (_eventSink != nil) {
       _eventSink(
           @{@"event" : @"isPlayingStateUpdate", @"isPlaying" : player.rate > 0 ? @YES : @NO});
+    }
+
+    if (_isPlaying && player.rate != 0.0 && _internalPlaybackSpeed != 0.0 && player.rate != _internalPlaybackSpeed) {
+      // AVPlayer's rate gets reset on HLS bitrate changes, and also on .seek calls
+      // So we listen to rate changes, and then force the playback rate back to our intended rate
+      // In some rare cases this causes a very small audio hiccup,
+      // but there seems to be no better solution at this time
+      // See: https://github.com/flutter/flutter/issues/71264
+      [self setPlaybackSpeed:_internalPlaybackSpeed];
     }
   }
 }
@@ -554,6 +612,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     return;
   }
 
+  [self setInternalPlaybackSpeed:speed];
   _player.rate = speed;
 }
 
@@ -665,6 +724,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 @implementation FVPVideoPlayerPlugin
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   FVPVideoPlayerPlugin *instance = [[FVPVideoPlayerPlugin alloc] initWithRegistrar:registrar];
+  [AssetPersistenceManager.sharedManager restorePersistenceManager];
 #if !TARGET_OS_OSX
   // TODO(stuartmorgan): Remove the ifdef once >3.13 reaches stable. See
   // https://github.com/flutter/flutter/issues/135320
@@ -740,6 +800,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     @try {
       player = [[FVPVideoPlayer alloc] initWithAsset:assetPath
                                         frameUpdater:frameUpdater
+                                      audioTrackName:input.audioTrackName
                                        playerFactory:_playerFactory
                                            registrar:self.registrar];
       return [self onPlayerSetup:player frameUpdater:frameUpdater];
@@ -751,12 +812,68 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     player = [[FVPVideoPlayer alloc] initWithURL:[NSURL URLWithString:input.uri]
                                     frameUpdater:frameUpdater
                                      httpHeaders:input.httpHeaders
+                                 audioTrackName:input.audioTrackName
                                    playerFactory:_playerFactory
                                        registrar:self.registrar];
     return [self onPlayerSetup:player frameUpdater:frameUpdater];
   } else {
     *error = [FlutterError errorWithCode:@"video_player" message:@"not implemented" details:nil];
     return nil;
+  }
+}
+
+- (FVPTextureMessage *)createWithHlsCachingSupport:(FVPCreateMessage *)input error:(FlutterError **)error {
+  if (input.uri != nil) {
+    NSURL* remoteUrl = [NSURL URLWithString:input.uri];
+    if(![self isHlsStream:remoteUrl]) {
+      return [self create:input error:error];
+    }
+
+    FVPFrameUpdater *frameUpdater = [[FVPFrameUpdater alloc] initWithRegistry:_registry];
+    FVPVideoPlayer *player;
+
+    AVURLAsset* remoteUrlAsset = [self createAVURLAssetWithHttpHeaders:input.httpHeaders remoteUrl:remoteUrl];
+    Asset* localAsset;
+
+    Asset* asset = [[Asset alloc] initWithURLAsset:remoteUrlAsset];
+
+    if (AssetPersistenceManager.sharedManager.didRestorePersistenceManager) {
+      AssetDownloadState assetDownloadState = [AssetPersistenceManager.sharedManager downloadState:asset audioTrackName:input.audioTrackName];
+      switch(assetDownloadState) {
+        case AssetDownloaded: {
+          NSLog(@"HLS asset is in cache");
+          // Can delete
+          //[AssetPersistenceManager.sharedManager deleteAsset:asset];
+          localAsset = [AssetPersistenceManager.sharedManager localAssetForStream:asset.uniqueId];
+          break;
+        }
+        case AssetDownloading: {
+          NSLog(@"HLS asset is downloading");
+          // Can cancel
+          //[AssetPersistenceManager.sharedManager cancelDownload:asset];
+          localAsset = [AssetPersistenceManager.sharedManager assetForStream:asset.uniqueId];
+          break;
+        }
+        case AssetNotDownloaded: {
+          NSLog(@"HLS asset is not cached, starting download");
+          [AssetPersistenceManager.sharedManager downloadStream:asset streamName:input.name audioTrackName:input.audioTrackName];
+          localAsset = asset;
+          break;
+        }
+      }
+    } else {
+      NSLog(@"Asset manager not initialized (did you forget to restore state in AppDelegate?)");
+      localAsset = asset;
+    }
+
+    player = [[FVPVideoPlayer alloc] initWithURLAsset:localAsset.urlAsset
+                                         frameUpdater:frameUpdater
+                                       audioTrackName:input.audioTrackName
+                                        playerFactory:_playerFactory
+                                            registrar:self.registrar];
+    return [self onPlayerSetup:player frameUpdater:frameUpdater];
+  } else {
+    return [self create:input error:error];
   }
 }
 
@@ -790,6 +907,103 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 - (void)setVolume:(FVPVolumeMessage *)input error:(FlutterError **)error {
   FVPVideoPlayer *player = self.playersByTextureId[input.textureId];
   [player setVolume:input.volume.doubleValue];
+}
+
+- (void)startHlsStreamCachingIfNeeded:(FVPHlsStreamMessage *)input error:(FlutterError **)error {
+  NSURL* remoteUrl = [NSURL URLWithString:input.uri];
+  if(remoteUrl != nil && [self isHlsStream:remoteUrl]) {
+    if (AssetPersistenceManager.sharedManager.didRestorePersistenceManager) {
+      AVURLAsset* remoteUrlAsset = [self createAVURLAssetWithHttpHeaders:input.httpHeaders remoteUrl:remoteUrl];
+
+      Asset* asset = [[Asset alloc] initWithURLAsset:remoteUrlAsset];
+
+      AssetDownloadState assetDownloadState = [AssetPersistenceManager.sharedManager downloadState:asset audioTrackName:input.audioTrackName];
+      if(assetDownloadState == AssetNotDownloaded) {
+        [AssetPersistenceManager.sharedManager downloadStream:asset streamName:input.name audioTrackName:input.audioTrackName];
+      }
+    }  else {
+      NSLog(@"Asset manager not initialized (did you forget to restore state in AppDelegate?)");
+    }
+  }
+}
+
+- (FVPIsHlsAvailableOfflineMessage *)isHlsAvailableOffline:(FVPHlsStreamMessage *)input error:(FlutterError **)error {
+  NSURL* remoteUrl = [NSURL URLWithString:input.uri];
+  if(remoteUrl != nil && [self isHlsStream:remoteUrl]) {
+    if (AssetPersistenceManager.sharedManager.didRestorePersistenceManager) {
+      AVURLAsset* remoteUrlAsset = [self createAVURLAssetWithHttpHeaders:input.httpHeaders remoteUrl:remoteUrl];
+      Asset* asset = [[Asset alloc] initWithURLAsset:remoteUrlAsset];
+
+      AssetDownloadState assetDownloadState = [AssetPersistenceManager.sharedManager downloadState:asset audioTrackName:input.audioTrackName];
+      if (assetDownloadState == AssetDownloaded) {
+        return [FVPIsHlsAvailableOfflineMessage makeWithIsAvailableOffline:@true];
+      }
+    } else {
+      NSLog(@"Asset manager not initialized (did you forget to restore state in AppDelegate?)");
+    }
+  }
+  return [FVPIsHlsAvailableOfflineMessage makeWithIsAvailableOffline:@false];
+}
+
+- (AVURLAsset*)createAVURLAssetWithHttpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders remoteUrl:(NSURL *)remoteUrl {
+  NSDictionary<NSString *, id> *options = nil;
+  if ([httpHeaders count] != 0) {
+    options = @{@"AVURLAssetHTTPHeaderFieldsKey" : httpHeaders};
+  }
+
+  return [AVURLAsset URLAssetWithURL:remoteUrl options:options];
+}
+
+- (bool)isHlsStream:(NSURL *)remoteUrl {
+  return [remoteUrl.pathExtension isEqualToString:@"m3u8"];
+}
+
+- (FVPAudioTrackMessage*)getAvailableAudioTracksList:(FVPTextureMessage *)input error:(FlutterError **)error {
+  FVPVideoPlayer* player = self.playersByTextureId[input.textureId];
+  NSMutableArray* audioTrackNames = [NSMutableArray array];
+  AVMediaSelectionGroup *audioSelectionGroup = [[[player.player currentItem] asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
+  if(audioSelectionGroup != nil) {
+    NSArray* audioSelectionGroupOptions = audioSelectionGroup.options;
+    for(AVMediaSelectionOption* audioTrack in audioSelectionGroupOptions) {
+      NSString* audioTrackLanguageTag = audioTrack.locale.languageCode;
+      if (audioTrackLanguageTag != nil) {
+        [audioTrackNames addObject: audioTrackLanguageTag];
+      } else {
+        [audioTrackNames addObject: @"und"]; // as defined in ISO 639-2
+      }
+    }
+  }
+
+  return [FVPAudioTrackMessage makeWithTextureId:input.textureId audioTrackNames:audioTrackNames index:@0];
+}
+
+- (void)setActiveAudioTrack:(nonnull FVPAudioTrackMessage *)input error:(FlutterError * _Nullable __autoreleasing * _Nonnull)error {
+  FVPVideoPlayer* player = self.playersByTextureId[input.textureId];
+  if(input.audioTrackNames != nil && [input.audioTrackNames count] > 0) {
+    NSString* requestedAudioTrackName = input.audioTrackNames.firstObject;
+    AVMediaSelectionGroup *audioSelectionGroup = [[[player.player currentItem] asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
+    if(audioSelectionGroup != nil) {
+      NSArray* audioSelectionGroupOptions = audioSelectionGroup.options;
+      for(AVMediaSelectionOption* audioTrack in audioSelectionGroupOptions) {
+        if([audioTrack.locale.languageCode isEqualToString:requestedAudioTrackName]) {
+          [[player.player currentItem] selectMediaOption:audioTrack inMediaSelectionGroup: audioSelectionGroup];
+          break;
+        }
+      }
+    }
+  }
+}
+
+- (void)setActiveAudioTrackByIndex:(nonnull FVPAudioTrackMessage *)input error:(FlutterError * _Nullable __autoreleasing * _Nonnull)error {
+  FVPVideoPlayer* player = self.playersByTextureId[input.textureId];
+  if(input.index != nil) {
+    int index = [input.index intValue];
+    AVMediaSelectionGroup *audioSelectionGroup = [[[player.player currentItem] asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
+    if(audioSelectionGroup != nil) {
+      NSArray* audioSelectionGroupOptions = audioSelectionGroup.options;
+      [[player.player currentItem] selectMediaOption:audioSelectionGroupOptions[index] inMediaSelectionGroup: audioSelectionGroup];
+    }
+  }
 }
 
 - (void)setPlaybackSpeed:(FVPPlaybackSpeedMessage *)input error:(FlutterError **)error {

@@ -61,10 +61,17 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
       uri: uri,
       httpHeaders: httpHeaders,
       formatHint: formatHint,
+      audioTrackName: dataSource.audioTrackName,
     );
 
     final TextureMessage response = await _api.create(message);
     return response.textureId;
+  }
+
+  @override
+  Future<int?> createWithHlsCachingSupport(DataSource dataSource) {
+    // HLS caching is not supported on Android
+    return create(dataSource);
   }
 
   @override
@@ -73,6 +80,18 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
       textureId: textureId,
       isLooping: looping,
     ));
+  }
+
+  @override
+  Future<void> startHlsStreamCachingIfNeeded(String urlString, String streamName, String audioTrackName) {
+    // HLS caching is not supported on Android
+    return Future<void>.value();
+  }
+
+  @override
+  Future<bool> isHlsAvailableOffline(String urlString, String? audioTrackName) {
+    // HLS caching is not supported on Android
+    return Future<bool>.value(false);
   }
 
   @override
@@ -91,6 +110,29 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
       textureId: textureId,
       volume: volume,
     ));
+  }
+
+  @override
+  Future<List<String?>> getAvailableAudioTracksList(int textureId) async {
+    final AudioTrackMessage audioTrackMessage = await _api.getAvailableAudioTracksList(
+      TextureMessage(textureId: textureId),
+    );
+    return audioTrackMessage.audioTrackNames!;
+  }
+
+  @override
+  Future<void> setActiveAudioTrack(int textureId, String audioTrackName) {
+    return _api.setActiveAudioTrack(
+      AudioTrackMessage(textureId: textureId)
+        ..audioTrackNames = <String>[audioTrackName],
+    );
+  }
+
+  @override
+  Future<void> setActiveAudioTrackByIndex(int textureId, int index) {
+    return _api.setActiveAudioTrackByIndex(
+      AudioTrackMessage(textureId: textureId)..index = index,
+    );
   }
 
   @override

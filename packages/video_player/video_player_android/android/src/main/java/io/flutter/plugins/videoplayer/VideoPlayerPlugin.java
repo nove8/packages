@@ -14,6 +14,7 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugins.videoplayer.Messages.AndroidVideoPlayerApi;
+import io.flutter.plugins.videoplayer.Messages.AudioTrackMessage;
 import io.flutter.plugins.videoplayer.Messages.CreateMessage;
 import io.flutter.plugins.videoplayer.Messages.LoopingMessage;
 import io.flutter.plugins.videoplayer.Messages.MixWithOthersMessage;
@@ -126,6 +127,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
             flutterState.binaryMessenger, "flutter.io/videoPlayer/videoEvents" + handle.id());
 
     VideoPlayer player;
+    String audioTrackName = arg.getAudioTrackName();
     if (arg.getAsset() != null) {
       String assetLookupKey;
       if (arg.getPackageName() != null) {
@@ -142,6 +144,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
               "asset:///" + assetLookupKey,
               null,
               new HashMap<>(),
+              audioTrackName,
               options);
     } else {
       Map<String, String> httpHeaders = arg.getHttpHeaders();
@@ -153,6 +156,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
               arg.getUri(),
               arg.getFormatHint(),
               httpHeaders,
+              audioTrackName,
               options);
     }
     videoPlayers.put(handle.id(), player);
@@ -174,6 +178,24 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
   public void setVolume(@NonNull VolumeMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
     player.setVolume(arg.getVolume());
+  }
+
+  public AudioTrackMessage getAvailableAudioTracksList(TextureMessage arg) {
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    AudioTrackMessage.Builder builder = new AudioTrackMessage.Builder();
+    builder.setAudioTrackNames(player.getAvailableAudioTracksList());
+    builder.setTextureId(arg.getTextureId());
+    return builder.build();
+  }
+
+  public void setActiveAudioTrack(AudioTrackMessage arg) {
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    player.setActiveAudioTrack(arg.getAudioTrackNames().get(0).toString());
+  }
+
+  public void setActiveAudioTrackByIndex(AudioTrackMessage arg) {
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    player.setActiveAudioTrackByIndex(arg.getIndex().intValue());
   }
 
   public void setPlaybackSpeed(@NonNull PlaybackSpeedMessage arg) {

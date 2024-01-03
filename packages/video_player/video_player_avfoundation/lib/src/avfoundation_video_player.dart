@@ -32,10 +32,18 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<int?> create(DataSource dataSource) async {
+    final CreateMessage message = _obtainCreateMessageFromDataSource(dataSource);
+    final TextureMessage response = await _api.create(message);
+    return response.textureId;
+  }
+
+  CreateMessage _obtainCreateMessageFromDataSource(DataSource dataSource) {
     String? asset;
     String? packageName;
     String? uri;
     String? formatHint;
+    String? name;
+    String? audioTrackName;
     Map<String, String> httpHeaders = <String, String>{};
     switch (dataSource.sourceType) {
       case DataSourceType.asset:
@@ -46,6 +54,8 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
         uri = dataSource.uri;
         formatHint = _videoFormatStringMap[dataSource.formatHint];
         httpHeaders = dataSource.httpHeaders;
+        name = dataSource.name;
+        audioTrackName = dataSource.audioTrackName;
         break;
       case DataSourceType.file:
         uri = dataSource.uri;
@@ -54,15 +64,21 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
         uri = dataSource.uri;
         break;
     }
-    final CreateMessage message = CreateMessage(
+    return CreateMessage(
       asset: asset,
       packageName: packageName,
       uri: uri,
       httpHeaders: httpHeaders,
       formatHint: formatHint,
+      name: name,
+      audioTrackName: audioTrackName,
     );
+  }
 
-    final TextureMessage response = await _api.create(message);
+  @override
+  Future<int?> createWithHlsCachingSupport(DataSource dataSource) async {
+    final CreateMessage message = _obtainCreateMessageFromDataSource(dataSource);
+    final TextureMessage response = await _api.createWithHlsCachingSupport(message);
     return response.textureId;
   }
 
@@ -72,6 +88,29 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
       textureId: textureId,
       isLooping: looping,
     ));
+  }
+
+  @override
+  Future<void> startHlsStreamCachingIfNeeded(String urlString, String streamName, String audioTrackName) {
+    final HlsStreamMessage message = HlsStreamMessage(
+      uri: urlString,
+      name: streamName,
+      audioTrackName: audioTrackName,
+      httpHeaders: <String?, String?>{},
+    );
+    return _api.startHlsStreamCachingIfNeeded(message);
+  }
+
+  @override
+  Future<bool> isHlsAvailableOffline(String urlString, String? audioTrackName) async {
+    final HlsStreamMessage message = HlsStreamMessage(
+      uri: urlString,
+      audioTrackName: audioTrackName,
+      httpHeaders: <String?, String?>{},
+    );
+    return _api
+        .isHlsAvailableOffline(message)
+        .then((IsHlsAvailableOfflineMessage message) => message.isAvailableOffline != 0);
   }
 
   @override
@@ -90,6 +129,28 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
       textureId: textureId,
       volume: volume,
     ));
+  }
+
+  @override
+  Future<List<String?>> getAvailableAudioTracksList(int textureId) async {
+    final AudioTrackMessage audioTrackMessage = await _api.getAvailableAudioTracksList(
+      TextureMessage(textureId: textureId),
+    );
+    return audioTrackMessage.audioTrackNames!;
+  }
+
+  @override
+  Future<void> setActiveAudioTrack(int textureId, String audioTrackName) {
+    return _api.setActiveAudioTrack(
+      AudioTrackMessage(textureId: textureId)..audioTrackNames = <String>[audioTrackName],
+    );
+  }
+
+  @override
+  Future<void> setActiveAudioTrackByIndex(int textureId, int index) {
+    return _api.setActiveAudioTrackByIndex(
+      AudioTrackMessage(textureId: textureId)..index = index,
+    );
   }
 
   @override

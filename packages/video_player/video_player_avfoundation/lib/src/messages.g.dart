@@ -84,6 +84,37 @@ class VolumeMessage {
   }
 }
 
+class AudioTrackMessage {
+  AudioTrackMessage({
+    required this.textureId,
+    this.audioTrackNames,
+    this.index,
+  });
+
+  int textureId;
+
+  List<String?>? audioTrackNames;
+
+  int? index;
+
+  Object encode() {
+    return <Object?>[
+      textureId,
+      audioTrackNames,
+      index,
+    ];
+  }
+
+  static AudioTrackMessage decode(Object result) {
+    result as List<Object?>;
+    return AudioTrackMessage(
+      textureId: result[0]! as int,
+      audioTrackNames: (result[1] as List<Object?>?)?.cast<String?>(),
+      index: result[2] as int?,
+    );
+  }
+}
+
 class PlaybackSpeedMessage {
   PlaybackSpeedMessage({
     required this.textureId,
@@ -142,6 +173,8 @@ class CreateMessage {
     this.uri,
     this.packageName,
     this.formatHint,
+    this.name,
+    this.audioTrackName,
     required this.httpHeaders,
   });
 
@@ -153,6 +186,10 @@ class CreateMessage {
 
   String? formatHint;
 
+  String? name;
+
+  String? audioTrackName;
+
   Map<String?, String?> httpHeaders;
 
   Object encode() {
@@ -161,6 +198,8 @@ class CreateMessage {
       uri,
       packageName,
       formatHint,
+      name,
+      audioTrackName,
       httpHeaders,
     ];
   }
@@ -172,8 +211,66 @@ class CreateMessage {
       uri: result[1] as String?,
       packageName: result[2] as String?,
       formatHint: result[3] as String?,
-      httpHeaders:
-          (result[4] as Map<Object?, Object?>?)!.cast<String?, String?>(),
+      name: result[4] as String?,
+      audioTrackName: result[5] as String?,
+      httpHeaders: (result[6] as Map<Object?, Object?>?)!.cast<String?, String?>(),
+    );
+  }
+}
+
+class HlsStreamMessage {
+  HlsStreamMessage({
+    required this.uri,
+    this.name,
+    this.audioTrackName,
+    required this.httpHeaders,
+  });
+
+  String uri;
+
+  String? name;
+
+  String? audioTrackName;
+
+  Map<String?, String?> httpHeaders;
+
+  Object encode() {
+    return <Object?>[
+      uri,
+      name,
+      audioTrackName,
+      httpHeaders,
+    ];
+  }
+
+  static HlsStreamMessage decode(Object result) {
+    result as List<Object?>;
+    return HlsStreamMessage(
+      uri: result[0]! as String,
+      name: result[1] as String?,
+      audioTrackName: result[2] as String?,
+      httpHeaders: (result[3] as Map<Object?, Object?>?)!.cast<String?, String?>(),
+    );
+  }
+}
+
+class IsHlsAvailableOfflineMessage {
+  IsHlsAvailableOfflineMessage({
+    required this.isAvailableOffline,
+  });
+
+  int isAvailableOffline;
+
+  Object encode() {
+    return <Object?>[
+      isAvailableOffline,
+    ];
+  }
+
+  static IsHlsAvailableOfflineMessage decode(Object result) {
+    result as List<Object?>;
+    return IsHlsAvailableOfflineMessage(
+      isAvailableOffline: result[0]! as int,
     );
   }
 }
@@ -203,26 +300,35 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
   const _AVFoundationVideoPlayerApiCodec();
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
-    if (value is CreateMessage) {
+    if (value is AudioTrackMessage) {
       buffer.putUint8(128);
       writeValue(buffer, value.encode());
-    } else if (value is LoopingMessage) {
+    } else if (value is CreateMessage) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    } else if (value is MixWithOthersMessage) {
+    } else if (value is HlsStreamMessage) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    } else if (value is PlaybackSpeedMessage) {
+    } else if (value is IsHlsAvailableOfflineMessage) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    } else if (value is PositionMessage) {
+    } else if (value is LoopingMessage) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    } else if (value is TextureMessage) {
+    } else if (value is MixWithOthersMessage) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    } else if (value is VolumeMessage) {
+    } else if (value is PlaybackSpeedMessage) {
       buffer.putUint8(134);
+      writeValue(buffer, value.encode());
+    } else if (value is PositionMessage) {
+      buffer.putUint8(135);
+      writeValue(buffer, value.encode());
+    } else if (value is TextureMessage) {
+      buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    } else if (value is VolumeMessage) {
+      buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -232,19 +338,25 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 128:
+      case 128: 
+        return AudioTrackMessage.decode(readValue(buffer)!);
+      case 129: 
         return CreateMessage.decode(readValue(buffer)!);
-      case 129:
+      case 130: 
+        return HlsStreamMessage.decode(readValue(buffer)!);
+      case 131: 
+        return IsHlsAvailableOfflineMessage.decode(readValue(buffer)!);
+      case 132: 
         return LoopingMessage.decode(readValue(buffer)!);
-      case 130:
+      case 133: 
         return MixWithOthersMessage.decode(readValue(buffer)!);
-      case 131:
+      case 134: 
         return PlaybackSpeedMessage.decode(readValue(buffer)!);
-      case 132:
+      case 135: 
         return PositionMessage.decode(readValue(buffer)!);
-      case 133:
+      case 136: 
         return TextureMessage.decode(readValue(buffer)!);
-      case 134:
+      case 137: 
         return VolumeMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -264,10 +376,10 @@ class AVFoundationVideoPlayerApi {
 
   Future<void> initialize() async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.initialize',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.initialize', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList =
+        await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -286,8 +398,34 @@ class AVFoundationVideoPlayerApi {
 
   Future<TextureMessage> create(CreateMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.create',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.create', codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_msg]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as TextureMessage?)!;
+    }
+  }
+
+  Future<TextureMessage> createWithHlsCachingSupport(CreateMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.createWithHlsCachingSupport', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_msg]) as List<Object?>?;
@@ -314,8 +452,7 @@ class AVFoundationVideoPlayerApi {
 
   Future<void> dispose(TextureMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.dispose',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.dispose', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_msg]) as List<Object?>?;
@@ -337,8 +474,7 @@ class AVFoundationVideoPlayerApi {
 
   Future<void> setLooping(LoopingMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setLooping',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setLooping', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_msg]) as List<Object?>?;
@@ -360,8 +496,78 @@ class AVFoundationVideoPlayerApi {
 
   Future<void> setVolume(VolumeMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setVolume',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setVolume', codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_msg]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<AudioTrackMessage> getAvailableAudioTracksList(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.getAvailableAudioTracksList', codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_msg]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as AudioTrackMessage?)!;
+    }
+  }
+
+  Future<void> setActiveAudioTrack(AudioTrackMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setActiveAudioTrack', codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_msg]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> setActiveAudioTrackByIndex(AudioTrackMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setActiveAudioTrackByIndex', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_msg]) as List<Object?>?;
@@ -383,8 +589,7 @@ class AVFoundationVideoPlayerApi {
 
   Future<void> setPlaybackSpeed(PlaybackSpeedMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setPlaybackSpeed',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setPlaybackSpeed', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_msg]) as List<Object?>?;
@@ -404,10 +609,58 @@ class AVFoundationVideoPlayerApi {
     }
   }
 
+  Future<void> startHlsStreamCachingIfNeeded(HlsStreamMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.startHlsStreamCachingIfNeeded', codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_msg]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<IsHlsAvailableOfflineMessage> isHlsAvailableOffline(HlsStreamMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.isHlsAvailableOffline', codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_msg]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as IsHlsAvailableOfflineMessage?)!;
+    }
+  }
+
   Future<void> play(TextureMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.play',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.play', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_msg]) as List<Object?>?;
@@ -429,8 +682,7 @@ class AVFoundationVideoPlayerApi {
 
   Future<PositionMessage> position(TextureMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.position',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.position', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_msg]) as List<Object?>?;
@@ -457,8 +709,7 @@ class AVFoundationVideoPlayerApi {
 
   Future<void> seekTo(PositionMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.seekTo',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.seekTo', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_msg]) as List<Object?>?;
@@ -480,8 +731,7 @@ class AVFoundationVideoPlayerApi {
 
   Future<void> pause(TextureMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.pause',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.pause', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_msg]) as List<Object?>?;
@@ -503,8 +753,7 @@ class AVFoundationVideoPlayerApi {
 
   Future<void> setMixWithOthers(MixWithOthersMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setMixWithOthers',
-        codec,
+        'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.setMixWithOthers', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_msg]) as List<Object?>?;

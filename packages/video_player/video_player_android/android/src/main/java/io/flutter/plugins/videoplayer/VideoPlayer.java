@@ -28,12 +28,19 @@ import com.google.android.exoplayer2.source.dash.DefaultDashChunkSource;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
 import com.google.android.exoplayer2.source.smoothstreaming.DefaultSsChunkSource;
 import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource;
+import com.google.android.exoplayer2.source.TrackGroup;
+import com.google.android.exoplayer2.source.TrackGroupArray;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
+import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
+import com.google.android.exoplayer2.trackselection.TrackSelectionOverride;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector.SelectionOverride;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSource;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
 import com.google.android.exoplayer2.util.Util;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.view.TextureRegistry;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -47,6 +54,8 @@ final class VideoPlayer {
   private static final String FORMAT_OTHER = "other";
 
   private ExoPlayer exoPlayer;
+
+  private DefaultTrackSelector trackSelector;
 
   private Surface surface;
 
@@ -71,12 +80,21 @@ final class VideoPlayer {
       String dataSource,
       String formatHint,
       @NonNull Map<String, String> httpHeaders,
+      String audioTrackName,
       VideoPlayerOptions options) {
     this.eventChannel = eventChannel;
     this.textureEntry = textureEntry;
     this.options = options;
 
-    ExoPlayer exoPlayer = new ExoPlayer.Builder(context).build();
+    trackSelector = new DefaultTrackSelector(context);
+    if(audioTrackName != null) {
+      trackSelector.setParameters(
+              trackSelector
+                      .buildUponParameters()
+                      .setPreferredAudioLanguage(audioTrackName));
+    }
+
+    ExoPlayer exoPlayer = new ExoPlayer.Builder(context).setTrackSelector(trackSelector).build();
     Uri uri = Uri.parse(dataSource);
 
     buildHttpDataSourceFactory(httpHeaders);
@@ -274,6 +292,97 @@ final class VideoPlayer {
   void setVolume(double value) {
     float bracketedValue = (float) Math.max(0.0, Math.min(1.0, value));
     exoPlayer.setVolume(bracketedValue);
+  }
+
+  ArrayList<String> getAvailableAudioTracksList() {
+    MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
+    ArrayList<String> audioTrackNames = new ArrayList<String>();
+    if(mappedTrackInfo == null) {
+      return audioTrackNames;
+    }
+
+    for(int rendererIndex = 0; rendererIndex < mappedTrackInfo.getRendererCount(); rendererIndex++) {
+      if(mappedTrackInfo.getRendererType(rendererIndex) != C.TRACK_TYPE_AUDIO)
+        continue;
+      TrackGroupArray trackGroupArray = mappedTrackInfo.getTrackGroups(rendererIndex);
+      for(int trackGroupIndex = 0; trackGroupIndex < trackGroupArray.length; trackGroupIndex++) {
+        TrackGroup group = trackGroupArray.get(trackGroupIndex);
+        for (int trackIndex = 0; trackIndex < group.length; trackIndex++) {
+          if ((mappedTrackInfo.getTrackSupport(rendererIndex, trackGroupIndex, trackIndex))
+                  == C.FORMAT_HANDLED) {
+            String name = getAudioTrackName(group.getFormat(trackIndex));
+            audioTrackNames.add(name);
+          }
+        }
+      }
+    }
+
+    // On iOS, if the amount of audio tracks is 1, and the only audio track has no language tag (undefined),
+    // it returns an empty array of audio tracks for some reason (yet still plays the audio).
+    // To match this behavior on Android, we use this hack.
+    if(audioTrackNames.size() == 1) {
+      if(audioTrackNames.get(0).equals("und")) {
+        return new ArrayList<String>();
+      }
+    }
+    return audioTrackNames;
+  }
+
+  void setActiveAudioTrack(String audioTrackName) {
+    MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
+    for (int rendererIndex = 0; rendererIndex < mappedTrackInfo.getRendererCount(); rendererIndex++) {
+      if (mappedTrackInfo.getRendererType(rendererIndex) != C.TRACK_TYPE_AUDIO)
+        continue;
+      TrackGroupArray trackGroupArray = mappedTrackInfo.getTrackGroups(rendererIndex);
+      for (int trackGroupIndex = 0; trackGroupIndex < trackGroupArray.length; trackGroupIndex++) {
+        TrackGroup group = trackGroupArray.get(trackGroupIndex);
+        for (int trackIndex = 0; trackIndex < group.length; trackIndex++) {
+          if (getAudioTrackName(group.getFormat(trackIndex)).equals(audioTrackName)) {
+            applyAudioTrackSettings(rendererIndex, trackIndex, trackGroupIndex, mappedTrackInfo);
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  void setActiveAudioTrackByIndex(int index) {
+    MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
+    int audioIndex = 0;
+    for (int rendererIndex = 0; rendererIndex < mappedTrackInfo.getRendererCount(); rendererIndex++) {
+      if (mappedTrackInfo.getRendererType(rendererIndex) != C.TRACK_TYPE_AUDIO)
+        continue;
+      TrackGroupArray trackGroupArray = mappedTrackInfo.getTrackGroups(rendererIndex);
+      for (int trackGroupIndex = 0; trackGroupIndex < trackGroupArray.length; trackGroupIndex++) {
+        TrackGroup group = trackGroupArray.get(trackGroupIndex);
+        for (int trackIndex = 0; trackIndex < group.length; trackIndex++) {
+          if (audioIndex == index) {
+            applyAudioTrackSettings(rendererIndex, trackIndex, trackGroupIndex, mappedTrackInfo);
+            return;
+          }
+          audioIndex++;
+        }
+      }
+    }
+  }
+
+  private String getAudioTrackName(Format groupFormat) {
+    String name = groupFormat.language;
+    if(name == null) {
+      name = "und"; // as defined in ISO 639-2
+    }
+    return name;
+  }
+
+  private void applyAudioTrackSettings(int rendererIndex, int trackIndex, int trackGroupIndex, MappingTrackSelector.MappedTrackInfo mappedTrackInfo) {
+    DefaultTrackSelector.Parameters.Builder builder = trackSelector.buildUponParameters();
+    //builder.clearOverridesOfType(C.TRACK_TYPE_AUDIO);
+    builder.clearOverridesOfType(rendererIndex);
+    builder.setRendererDisabled(rendererIndex, false);
+    TrackGroup trackGroup = mappedTrackInfo.getTrackGroups(rendererIndex).get(trackGroupIndex);
+    TrackSelectionOverride trackSelectionOverride = new TrackSelectionOverride(trackGroup, trackIndex);
+    builder.addOverride(trackSelectionOverride);
+    trackSelector.setParameters(builder.build());
   }
 
   void setPlaybackSpeed(double value) {

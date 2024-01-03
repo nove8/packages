@@ -86,6 +86,36 @@ class _ApiLogger implements TestHostVideoPlayerApi {
     log.add('setPlaybackSpeed');
     playbackSpeedMessage = arg;
   }
+
+  @override
+  TextureMessage createWithHlsCachingSupport(CreateMessage msg) {
+    throw UnimplementedError();
+  }
+
+  @override
+  AudioTrackMessage getAvailableAudioTracksList(TextureMessage msg) {
+    throw UnimplementedError();
+  }
+
+  @override
+  IsHlsAvailableOfflineMessage isHlsAvailableOffline(HlsStreamMessage msg) {
+    throw UnimplementedError();
+  }
+
+  @override
+  void setActiveAudioTrack(AudioTrackMessage msg) {
+    throw UnimplementedError();
+  }
+
+  @override
+  void setActiveAudioTrackByIndex(AudioTrackMessage msg) {
+    throw UnimplementedError();
+  }
+
+  @override
+  void startHlsStreamCachingIfNeeded(HlsStreamMessage msg) {
+    throw UnimplementedError();
+  }
 }
 
 void main() {

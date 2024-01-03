@@ -53,6 +53,11 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     throw UnimplementedError('create() has not been implemented.');
   }
 
+  /// Creates an instance of a video player with HLS caching support and returns its textureId.
+  Future<int?> createWithHlsCachingSupport(DataSource dataSource) {
+    throw UnimplementedError('createWithHlsCachingSupport() has not been implemented.');
+  }
+
   /// Returns a Stream of [VideoEventType]s.
   Stream<VideoEvent> videoEventsFor(int textureId) {
     throw UnimplementedError('videoEventsFor() has not been implemented.');
@@ -61,6 +66,16 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   /// Sets the looping attribute of the video.
   Future<void> setLooping(int textureId, bool looping) {
     throw UnimplementedError('setLooping() has not been implemented.');
+  }
+
+  /// Starts background caching if source is an HLS stream with no active/finished caching job.
+  Future<void> startHlsStreamCachingIfNeeded(String urlString, String streamName, String audioTrackName) {
+    throw UnimplementedError('startHlsStreamCachingIfNeeded() has not been implemented.');
+  }
+
+  /// Checks whether the given HLS stream is available for offline playback.
+  Future<bool> isHlsAvailableOffline(String urlString, String? audioTrackName) {
+    throw UnimplementedError('isHlsAvailableOffline() has not been implemented.');
   }
 
   /// Starts the video playback.
@@ -76,6 +91,21 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   /// Sets the volume to a range between 0.0 and 1.0.
   Future<void> setVolume(int textureId, double volume) {
     throw UnimplementedError('setVolume() has not been implemented.');
+  }
+
+  /// Returns a [List] of available audio tracks.
+  Future<List<Object?>> getAvailableAudioTracksList(int textureId) {
+    throw UnimplementedError('getAvailableAudioTracksList() has not been implemented');
+  }
+
+  /// Sets the active audio track by it's [audioTrackName].
+  Future<void> setActiveAudioTrack(int textureId, String audioTrackName) {
+    throw UnimplementedError('setActiveAudioTrack() has not been implemented');
+  }
+
+  /// Sets the active audio track by it's [index].
+  Future<void> setActiveAudioTrackByIndex(int textureId, int index) {
+    throw UnimplementedError('setActiveAudioTrackByIndex() has not been implemented');
   }
 
   /// Sets the video position to a [Duration] from the start.
@@ -133,6 +163,8 @@ class DataSource {
     this.formatHint,
     this.asset,
     this.package,
+    this.name,
+    this.audioTrackName,
     this.httpHeaders = const <String, String>{},
   });
 
@@ -163,6 +195,12 @@ class DataSource {
   /// The package that the asset was loaded from. Only set for
   /// [DataSourceType.asset] videos.
   final String? package;
+
+  /// User-friendly name of the asset (only used for HLS streams).
+  final String? name;
+
+  /// The name of the initial audio track (only used for HLS streams).
+  final String? audioTrackName;
 }
 
 /// The way in which the video was originally loaded.
