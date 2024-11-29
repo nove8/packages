@@ -24,7 +24,7 @@ dependencies:
     git:
       url: https://github.com/nove8/packages.git
       path: packages/video_player/video_player_platform_interface
-      ref: video_player-v2.8.3-nove8
+      ref: video_player-v2.8.4-nove8
 
 dev_dependencies:
   flutter_test:
