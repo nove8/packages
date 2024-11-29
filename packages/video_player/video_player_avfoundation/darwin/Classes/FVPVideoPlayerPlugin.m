@@ -136,7 +136,7 @@ static void *rateContext = &rateContext;
                audioTrackName:(NSString *)audioTrackName
                 displayLink:(FVPDisplayLink *)displayLink
                     avFactory:(id<FVPAVFactory>)avFactory
-                       registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
+                    registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   NSString *path = [[NSBundle mainBundle] pathForResource:asset ofType:nil];
 #if TARGET_OS_OSX
   // See https://github.com/flutter/flutter/issues/135302
@@ -265,9 +265,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
                frameUpdater:(FVPFrameUpdater *)frameUpdater
                 displayLink:(FVPDisplayLink *)displayLink
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
-              audioTrackName:(NSString *)audioTrackName
-              avFactory:(id<FVPAVFactory>)avFactory
-                      registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
+                 audioTrackName:(NSString *)audioTrackName
+                    avFactory:(id<FVPAVFactory>)avFactory
+                    registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   NSDictionary<NSString *, id> *options = nil;
   if ([headers count] != 0) {
     options = @{@"AVURLAssetHTTPHeaderFieldsKey" : headers};
@@ -275,15 +275,17 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   AVURLAsset *urlAsset = [AVURLAsset URLAssetWithURL:url options:options];
   return [self initWithURLAsset:urlAsset
                    frameUpdater:frameUpdater
+          displayLink:displayLink
                  audioTrackName:audioTrackName
-                  playerFactory:playerFactory
+                      avFactory:avFactory
                       registrar:registrar];
 }
 
 - (instancetype)initWithURLAsset:(AVURLAsset *)urlAsset
                     frameUpdater:(FVPFrameUpdater *)frameUpdater
+                     displayLink:(FVPDisplayLink *)displayLink
                   audioTrackName:(NSString *)audioTrackName
-                   playerFactory:(id<FVPPlayerFactory>)playerFactory
+                       avFactory:(id<FVPAVFactory>)avFactory
              registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   AVPlayerItem *item = [AVPlayerItem playerItemWithAsset:urlAsset];
   return [self initWithPlayerItem:item
@@ -291,7 +293,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
                    audioTrackName:audioTrackName
                     displayLink:(FVPDisplayLink *)displayLink
                         avFactory:avFactory
-                         registrar:registrar];
+                        registrar:registrar];
 }
 
 - (instancetype)initWithPlayerItem:(AVPlayerItem *)item
@@ -299,7 +301,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
                     audioTrackName:(NSString *)audioTrackName
                       displayLink:(FVPDisplayLink *)displayLink
                          avFactory:(id<FVPAVFactory>)avFactory
-                          registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
+                         registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   self = [super init];
   NSAssert(self, @"super init cannot be nil");
 
@@ -820,7 +822,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
                                       audioTrackName:input.audioTrackName
                                        displayLink:displayLink
                                            avFactory:_avFactory
-                                            registrar:self.registrar];
+                                           registrar:self.registrar];
       return [self onPlayerSetup:player frameUpdater:frameUpdater];
     } @catch (NSException *exception) {
       *error = [FlutterError errorWithCode:@"video_player" message:exception.reason details:nil];
@@ -849,6 +851,12 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     }
 
     FVPFrameUpdater *frameUpdater = [[FVPFrameUpdater alloc] initWithRegistry:_registry];
+    FVPDisplayLink *displayLink =
+          [self.displayLinkFactory displayLinkWithRegistrar:_registrar
+                                                   callback:^() {
+                                                     [frameUpdater displayLinkFired];
+                                                   }];
+    
     FVPVideoPlayer *player;
 
     AVURLAsset* remoteUrlAsset = [self createAVURLAssetWithHttpHeaders:input.httpHeaders remoteUrl:remoteUrl];
@@ -887,8 +895,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
     player = [[FVPVideoPlayer alloc] initWithURLAsset:localAsset.urlAsset
                                          frameUpdater:frameUpdater
+                                          displayLink:displayLink
                                        audioTrackName:input.audioTrackName
-                                        playerFactory:_playerFactory
+                                            avFactory:_avFactory
                                             registrar:self.registrar];
     return [self onPlayerSetup:player frameUpdater:frameUpdater];
   } else {
@@ -979,7 +988,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (FVPAudioTrackMessage*)getAvailableAudioTracksList:(FVPTextureMessage *)input error:(FlutterError **)error {
-  FVPVideoPlayer* player = self.playersByTextureId[input.textureId];
+    NSNumber *textureId = @(input.textureId);
+  FVPVideoPlayer* player = self.playersByTextureId[textureId];
   NSMutableArray* audioTrackNames = [NSMutableArray array];
   AVMediaSelectionGroup *audioSelectionGroup = [[[player.player currentItem] asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
   if(audioSelectionGroup != nil) {
@@ -994,7 +1004,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     }
   }
 
-  return [FVPAudioTrackMessage makeWithTextureId:input.textureId audioTrackNames:audioTrackNames index:@0];
+  return [FVPAudioTrackMessage makeWithTextureId:textureId audioTrackNames:audioTrackNames index:@0];
 }
 
 - (void)setActiveAudioTrack:(nonnull FVPAudioTrackMessage *)input error:(FlutterError * _Nullable __autoreleasing * _Nonnull)error {
