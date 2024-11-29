@@ -1,3 +1,8 @@
+## 5.0.2
+
+* Updates minimum supported SDK version to Flutter 3.10/Dart 3.0.
+* Fixes new lint warnings.
+
 ## 5.0.1
 
 * Transfers the package source from https://github.com/google/process.dart to

@@ -1,3 +1,8 @@
+## 3.1.12
+
+* Updates minimum supported SDK version to Flutter 3.10/Dart 3.0.
+* Fixes new lint warnings.
+
 ## 3.1.11
 
 * Updates documentation reference of `finishPurchase` to `completePurchase`.

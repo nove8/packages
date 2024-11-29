@@ -49,20 +49,16 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
       case DataSourceType.asset:
         asset = dataSource.asset;
         packageName = dataSource.package;
-        break;
       case DataSourceType.network:
         uri = dataSource.uri;
         formatHint = _videoFormatStringMap[dataSource.formatHint];
         httpHeaders = dataSource.httpHeaders;
         name = dataSource.name;
         audioTrackName = dataSource.audioTrackName;
-        break;
       case DataSourceType.file:
         uri = dataSource.uri;
-        break;
       case DataSourceType.contentUri:
         uri = dataSource.uri;
-        break;
     }
     return CreateMessage(
       asset: asset,

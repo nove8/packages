@@ -1,3 +1,8 @@
+## 6.2.1
+
+* Updates minimum supported SDK version to Flutter 3.10/Dart 3.0.
+* Fixes lint warnings.
+
 ## 6.2.0
 
 * Adds support for `inAppBrowserView` as a separate launch mode option from

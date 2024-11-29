@@ -1,3 +1,20 @@
+## 3.10.1
+
+* Fixes new lint warnings.
+
+## 3.10.0
+
+* Adds support for `PlatformNavigationDelegate.setOnHttpAuthRequest`.
+* Updates minimum supported SDK version to Flutter 3.10/Dart 3.0.
+
+## 3.9.4
+
+* Updates to Pigeon 13.
+
+## 3.9.3
+
+* Fixes `use_build_context_synchronously` lint violations in the example app.
+
 ## 3.9.2
 
 * Fixes error caused by calling `WKWebViewConfiguration.limitsNavigationsToAppBoundDomains` on
