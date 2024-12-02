@@ -298,7 +298,7 @@ didCompleteWithError:(NSError *)error {
                             /*
                              This task was cancelled or failed, should perform cleanup manually.
                              */
-                            NSLog(@"Failed to finish downloading an HLS stream, performing clean-up.");
+                            NSLog(@"Failed to finish downloading an HLS stream, error:@. Performing clean-up.", error);
                             
                             NSFileManager* defaultFileManager = [NSFileManager defaultManager];
                             @try {
