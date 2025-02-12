@@ -21,9 +21,17 @@ flutter:
 dependencies:
   flutter:
     sdk: flutter
-  in_app_purchase_android: ^0.3.4
+  in_app_purchase_android:
+    git:
+      url: https://github.com/nove8/packages.git
+      path: packages/in_app_purchase/in_app_purchase_android
+      ref: in_app_purchase_android-v0.3.6+12-nove8
   in_app_purchase_platform_interface: ^1.4.0
-  in_app_purchase_storekit: ^0.3.14
+  in_app_purchase_storekit:
+    git:
+      url: https://github.com/nove8/packages.git
+      path: packages/in_app_purchase/in_app_purchase_storekit
+      ref: in_app_purchase_storekit-v0.3.20+3-nove8
 
 dev_dependencies:
   flutter_test:
