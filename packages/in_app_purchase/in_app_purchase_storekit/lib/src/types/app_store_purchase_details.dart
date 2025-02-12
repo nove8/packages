@@ -49,7 +49,7 @@ class AppStorePurchaseDetails extends PurchaseDetails {
         purchaseDetails.status == PurchaseStatus.canceled) {
       purchaseDetails.error = IAPError(
         source: kIAPSource,
-        code: kPurchaseErrorCode,
+        code: transaction.error?.code.toString() ?? '',
         message: transaction.error?.domain ?? '',
         details: transaction.error?.userInfo,
       );
