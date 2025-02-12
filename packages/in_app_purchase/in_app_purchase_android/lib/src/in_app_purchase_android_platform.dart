@@ -274,7 +274,7 @@ class InAppPurchaseAndroidPlatform extends InAppPurchasePlatform {
     if (resultWrapper.responseCode != BillingResponse.ok) {
       error = IAPError(
         source: kIAPSource,
-        code: kPurchaseErrorCode,
+        code: _getCodeNumberForBillingResponse(resultWrapper.responseCode).toString(),
         message: resultWrapper.responseCode.toString(),
         details: resultWrapper.billingResult.debugMessage,
       );
@@ -312,6 +312,24 @@ class InAppPurchaseAndroidPlatform extends InAppPurchasePlatform {
         )..error = error
       ];
     }
+  }
+
+  int _getCodeNumberForBillingResponse(BillingResponse billingResponse) {
+    return switch (billingResponse) {
+      BillingResponse.serviceTimeout => -3,
+      BillingResponse.featureNotSupported => -2,
+      BillingResponse.serviceDisconnected => -1,
+      BillingResponse.ok => 0,
+      BillingResponse.userCanceled => 1,
+      BillingResponse.serviceUnavailable => 2,
+      BillingResponse.billingUnavailable => 3,
+      BillingResponse.itemUnavailable => 4,
+      BillingResponse.developerError => 5,
+      BillingResponse.error => 6,
+      BillingResponse.itemAlreadyOwned => 7,
+      BillingResponse.itemNotOwned => 8,
+      BillingResponse.networkError => 12,
+    };
   }
 
   /// Returns Play billing country code based on ISO-3166-1 alpha2 format.
