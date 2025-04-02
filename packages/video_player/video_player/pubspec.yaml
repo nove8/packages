@@ -3,7 +3,7 @@ description: Flutter plugin for displaying inline video with other Flutter
   widgets on Android, iOS, and web.
 repository: https://github.com/flutter/packages/tree/main/packages/video_player/video_player
 issue_tracker: https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+video_player%22
-version: 2.8.6
+version: 2.8.7
 
 environment:
   sdk: ">=3.2.3 <4.0.0"
@@ -29,22 +29,22 @@ dependencies:
     git:
       url: https://github.com/nove8/packages.git
       path: packages/video_player/video_player_android
-      ref: video_player-v2.8.6-nove8
+      ref: video_player-v2.8.7-nove8
   video_player_avfoundation:
     git:
       url: https://github.com/nove8/packages.git
       path: packages/video_player/video_player_avfoundation
-      ref: video_player-v2.8.6-nove8
+      ref: video_player-v2.8.7-nove8
   video_player_platform_interface:
     git:
       url: https://github.com/nove8/packages.git
       path: packages/video_player/video_player_platform_interface
-      ref: video_player-v2.8.6-nove8
+      ref: video_player-v2.8.7-nove8
   video_player_web:
     git:
       url: https://github.com/nove8/packages.git
       path: packages/video_player/video_player_web
-      ref: video_player-v2.8.6-nove8
+      ref: video_player-v2.8.7-nove8
 
 dev_dependencies:
   flutter_test:

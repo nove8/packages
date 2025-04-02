@@ -7,51 +7,18 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(PigeonOptions(
   dartOut: 'lib/src/messages.g.dart',
   dartTestOut: 'test/test_api.g.dart',
-  objcHeaderOut: 'darwin/Classes/messages.g.h',
-  objcSourceOut: 'darwin/Classes/messages.g.m',
+  objcHeaderOut:
+      'darwin/video_player_avfoundation/Sources/video_player_avfoundation/include/video_player_avfoundation/messages.g.h',
+  objcSourceOut:
+      'darwin/video_player_avfoundation/Sources/video_player_avfoundation/messages.g.m',
   objcOptions: ObjcOptions(
     prefix: 'FVP',
+    headerIncludePath: './include/video_player_avfoundation/messages.g.h',
   ),
   copyrightHeader: 'pigeons/copyright.txt',
 ))
-class TextureMessage {
-  TextureMessage(this.textureId);
-  int textureId;
-}
-
-class LoopingMessage {
-  LoopingMessage(this.textureId, this.isLooping);
-  int textureId;
-  bool isLooping;
-}
-
-class VolumeMessage {
-  VolumeMessage(this.textureId, this.volume);
-  int textureId;
-  double volume;
-}
-
-class AudioTrackMessage {
-  AudioTrackMessage(this.textureId, this.audioTrackNames, this.index);
-  int textureId;
-  List<String?>? audioTrackNames;
-  int? index;
-}
-
-class PlaybackSpeedMessage {
-  PlaybackSpeedMessage(this.textureId, this.speed);
-  int textureId;
-  double speed;
-}
-
-class PositionMessage {
-  PositionMessage(this.textureId, this.position);
-  int textureId;
-  int position;
-}
-
-class CreateMessage {
-  CreateMessage({required this.httpHeaders});
+class CreationOptions {
+  CreationOptions({required this.httpHeaders});
   String? asset;
   String? uri;
   String? packageName;
@@ -61,17 +28,19 @@ class CreateMessage {
   Map<String?, String?> httpHeaders;
 }
 
+class AudioTrackMessage {
+  AudioTrackMessage(this.textureId, this.audioTrackNames, this.index);
+  int textureId;
+  List<String?>? audioTrackNames;
+  int? index;
+}
+
 class HlsStreamMessage {
   HlsStreamMessage({required this.uri, this.name, required this.httpHeaders});
   String uri;
   String? name;
   String? audioTrackName;
   Map<String?, String?> httpHeaders;
-}
-
-class IsHlsAvailableOfflineMessage {
-  IsHlsAvailableOfflineMessage(this.isAvailableOffline);
-  int isAvailableOffline;
 }
 
 class MixWithOthersMessage {
@@ -83,37 +52,39 @@ class MixWithOthersMessage {
 abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('initialize')
   void initialize();
-  @ObjCSelector('create:')
-  TextureMessage create(CreateMessage msg);
+  @ObjCSelector('createWithOptions:')
+  // Creates a new player and returns its ID.
+  int create(CreationOptions creationOptions);
   @ObjCSelector('createWithHlsCachingSupport:')
-  TextureMessage createWithHlsCachingSupport(CreateMessage msg);
-  @ObjCSelector('dispose:')
-  void dispose(TextureMessage msg);
-  @ObjCSelector('setLooping:')
-  void setLooping(LoopingMessage msg);
-  @ObjCSelector('setVolume:')
-  void setVolume(VolumeMessage msg);
+  // Creates a new player and returns its ID.
+  int createWithHlsCachingSupport(CreationOptions creationOptions);
+  @ObjCSelector('disposePlayer:')
+  void dispose(int textureId);
+  @ObjCSelector('setLooping:forPlayer:')
+  void setLooping(bool isLooping, int textureId);
+  @ObjCSelector('setVolume:forPlayer:')
+  void setVolume(double volume, int textureId);
   @ObjCSelector('getAvailableAudioTracksList:')
-  AudioTrackMessage getAvailableAudioTracksList(TextureMessage msg);
+  AudioTrackMessage getAvailableAudioTracksList(int textureId);
   @ObjCSelector('setActiveAudioTrack:')
   void setActiveAudioTrack(AudioTrackMessage msg);
   @ObjCSelector('setActiveAudioTrackByIndex:')
   void setActiveAudioTrackByIndex(AudioTrackMessage msg);
-  @ObjCSelector('setPlaybackSpeed:')
-  void setPlaybackSpeed(PlaybackSpeedMessage msg);
+  @ObjCSelector('setPlaybackSpeed:forPlayer:')
+  void setPlaybackSpeed(double speed, int textureId);
   @ObjCSelector('startHlsStreamCachingIfNeeded:')
   void startHlsStreamCachingIfNeeded(HlsStreamMessage msg);
   @ObjCSelector('isHlsAvailableOffline:')
-  IsHlsAvailableOfflineMessage isHlsAvailableOffline(HlsStreamMessage msg);
-  @ObjCSelector('play:')
-  void play(TextureMessage msg);
-  @ObjCSelector('position:')
-  PositionMessage position(TextureMessage msg);
+  int isHlsAvailableOffline(HlsStreamMessage msg);
+  @ObjCSelector('playPlayer:')
+  void play(int textureId);
+  @ObjCSelector('positionForPlayer:')
+  int getPosition(int textureId);
   @async
-  @ObjCSelector('seekTo:')
-  void seekTo(PositionMessage msg);
-  @ObjCSelector('pause:')
-  void pause(TextureMessage msg);
+  @ObjCSelector('seekTo:forPlayer:')
+  void seekTo(int position, int textureId);
+  @ObjCSelector('pausePlayer:')
+  void pause(int textureId);
   @ObjCSelector('setMixWithOthers:')
-  void setMixWithOthers(MixWithOthersMessage msg);
+  void setMixWithOthers(bool mixWithOthers);
 }

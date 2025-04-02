@@ -8,17 +8,17 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 
-import com.google.android.exoplayer2.ExoPlayer;
-import com.google.android.exoplayer2.Format;
-import com.google.android.exoplayer2.PlaybackException;
-import com.google.android.exoplayer2.Player;
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
+import android.graphics.SurfaceTexture;
+import androidx.media3.common.PlaybackException;
+import androidx.media3.common.Player;
+import androidx.media3.common.VideoSize;
+import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.exoplayer.ExoPlayer;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.view.TextureRegistry;
 import java.util.HashMap;
@@ -39,6 +39,7 @@ public class VideoPlayerTest {
   private ExoPlayer fakeExoPlayer;
   private EventChannel fakeEventChannel;
   private TextureRegistry.SurfaceTextureEntry fakeSurfaceTextureEntry;
+  private SurfaceTexture fakeSurfaceTexture;
   private VideoPlayerOptions fakeVideoPlayerOptions;
   private QueuingEventSink fakeEventSink;
   private DefaultHttpDataSource.Factory httpDataSourceFactorySpy;
@@ -52,6 +53,8 @@ public class VideoPlayerTest {
     fakeExoPlayer = mock(ExoPlayer.class);
     fakeEventChannel = mock(EventChannel.class);
     fakeSurfaceTextureEntry = mock(TextureRegistry.SurfaceTextureEntry.class);
+    fakeSurfaceTexture = mock(SurfaceTexture.class);
+    when(fakeSurfaceTextureEntry.surfaceTexture()).thenReturn(fakeSurfaceTexture);
     fakeVideoPlayerOptions = mock(VideoPlayerOptions.class);
     fakeEventSink = mock(QueuingEventSink.class);
     httpDataSourceFactorySpy = spy(new DefaultHttpDataSource.Factory());
@@ -68,7 +71,7 @@ public class VideoPlayerTest {
             fakeEventSink,
             httpDataSourceFactorySpy);
 
-    videoPlayer.buildHttpDataSourceFactory(new HashMap<>());
+    videoPlayer.configureHttpDataSourceFactory(new HashMap<>());
 
     verify(httpDataSourceFactorySpy).setUserAgent("ExoPlayer");
     verify(httpDataSourceFactorySpy).setAllowCrossProtocolRedirects(true);
@@ -94,7 +97,7 @@ public class VideoPlayerTest {
           }
         };
 
-    videoPlayer.buildHttpDataSourceFactory(httpHeaders);
+    videoPlayer.configureHttpDataSourceFactory(httpHeaders);
 
     verify(httpDataSourceFactorySpy).setUserAgent("userAgent");
     verify(httpDataSourceFactorySpy).setAllowCrossProtocolRedirects(true);
@@ -119,7 +122,7 @@ public class VideoPlayerTest {
           }
         };
 
-    videoPlayer.buildHttpDataSourceFactory(httpHeaders);
+    videoPlayer.configureHttpDataSourceFactory(httpHeaders);
 
     verify(httpDataSourceFactorySpy).setUserAgent("ExoPlayer");
     verify(httpDataSourceFactorySpy).setAllowCrossProtocolRedirects(true);
@@ -136,10 +139,9 @@ public class VideoPlayerTest {
             fakeVideoPlayerOptions,
             fakeEventSink,
             httpDataSourceFactorySpy);
-    Format testFormat =
-        new Format.Builder().setWidth(100).setHeight(200).setRotationDegrees(90).build();
+    VideoSize testVideoSize = new VideoSize(100, 200, 90, 1f);
 
-    when(fakeExoPlayer.getVideoFormat()).thenReturn(testFormat);
+    when(fakeExoPlayer.getVideoSize()).thenReturn(testVideoSize);
     when(fakeExoPlayer.getDuration()).thenReturn(10L);
 
     videoPlayer.isInitialized = true;
@@ -165,10 +167,9 @@ public class VideoPlayerTest {
             fakeVideoPlayerOptions,
             fakeEventSink,
             httpDataSourceFactorySpy);
-    Format testFormat =
-        new Format.Builder().setWidth(100).setHeight(200).setRotationDegrees(270).build();
+    VideoSize testVideoSize = new VideoSize(100, 200, 270, 1f);
 
-    when(fakeExoPlayer.getVideoFormat()).thenReturn(testFormat);
+    when(fakeExoPlayer.getVideoSize()).thenReturn(testVideoSize);
     when(fakeExoPlayer.getDuration()).thenReturn(10L);
 
     videoPlayer.isInitialized = true;
@@ -194,10 +195,9 @@ public class VideoPlayerTest {
             fakeVideoPlayerOptions,
             fakeEventSink,
             httpDataSourceFactorySpy);
-    Format testFormat =
-        new Format.Builder().setWidth(100).setHeight(200).setRotationDegrees(0).build();
+    VideoSize testVideoSize = new VideoSize(100, 200, 0, 1f);
 
-    when(fakeExoPlayer.getVideoFormat()).thenReturn(testFormat);
+    when(fakeExoPlayer.getVideoSize()).thenReturn(testVideoSize);
     when(fakeExoPlayer.getDuration()).thenReturn(10L);
 
     videoPlayer.isInitialized = true;
@@ -223,10 +223,9 @@ public class VideoPlayerTest {
             fakeVideoPlayerOptions,
             fakeEventSink,
             httpDataSourceFactorySpy);
-    Format testFormat =
-        new Format.Builder().setWidth(100).setHeight(200).setRotationDegrees(180).build();
+    VideoSize testVideoSize = new VideoSize(100, 200, 180, 1f);
 
-    when(fakeExoPlayer.getVideoFormat()).thenReturn(testFormat);
+    when(fakeExoPlayer.getVideoSize()).thenReturn(testVideoSize);
     when(fakeExoPlayer.getDuration()).thenReturn(10L);
 
     videoPlayer.isInitialized = true;
