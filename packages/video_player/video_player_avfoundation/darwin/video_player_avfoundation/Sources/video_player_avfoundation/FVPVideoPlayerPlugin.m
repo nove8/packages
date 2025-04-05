@@ -4,7 +4,7 @@
 
 #import "FVPVideoPlayerPlugin.h"
 #import "FVPVideoPlayerPlugin_Test.h"
-#import "AssetPersistenceManager.h"
+#import "./include/video_player_avfoundation/AssetPersistenceManager.h"
 
 #import <AVFoundation/AVFoundation.h>
 #import <GLKit/GLKit.h>
