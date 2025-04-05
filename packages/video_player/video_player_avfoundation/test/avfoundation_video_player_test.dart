@@ -92,17 +92,17 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   }
 
   @override
-  TextureMessage createWithHlsCachingSupport(CreateMessage msg) {
+  int createWithHlsCachingSupport(CreationOptions creationOptions) {
     throw UnimplementedError();
   }
 
   @override
-  AudioTrackMessage getAvailableAudioTracksList(TextureMessage msg) {
+  AudioTrackMessage getAvailableAudioTracksList(int textureId) {
     throw UnimplementedError();
   }
 
   @override
-  IsHlsAvailableOfflineMessage isHlsAvailableOffline(HlsStreamMessage msg) {
+  int isHlsAvailableOffline(HlsStreamMessage msg) {
     throw UnimplementedError();
   }
 

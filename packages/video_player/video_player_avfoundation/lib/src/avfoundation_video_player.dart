@@ -73,7 +73,7 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   @override
   Future<int?> createWithHlsCachingSupport(DataSource dataSource) async {
     final CreationOptions options = _obtainCreateMessageFromDataSource(dataSource);
-    return _api.createWithHlsCachingSupport(message);
+    return _api.createWithHlsCachingSupport(options);
   }
 
   @override
@@ -101,7 +101,7 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
     );
     return _api
         .isHlsAvailableOffline(message)
-        .then((IsHlsAvailableOfflineMessage message) => message.isAvailableOffline != 0);
+        .then((int isAvailable) => isAvailable != 0);
   }
 
   @override
@@ -121,9 +121,7 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<List<String?>> getAvailableAudioTracksList(int textureId) async {
-    final AudioTrackMessage audioTrackMessage = await _api.getAvailableAudioTracksList(
-      TextureMessage(textureId: textureId),
-    );
+    final AudioTrackMessage audioTrackMessage = await _api.getAvailableAudioTracksList(textureId);
     return audioTrackMessage.audioTrackNames!;
   }
 
