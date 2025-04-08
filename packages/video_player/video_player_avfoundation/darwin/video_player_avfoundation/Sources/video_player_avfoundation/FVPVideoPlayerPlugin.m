@@ -796,7 +796,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     @try {
       player = [[FVPVideoPlayer alloc] initWithAsset:assetPath
                                         frameUpdater:frameUpdater
-                                      audioTrackName:input.audioTrackName
+                                      audioTrackName:options.audioTrackName
                                        displayLink:displayLink
                                            avFactory:_avFactory
                                            registrar:self.registrar];
@@ -810,7 +810,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
                                     frameUpdater:frameUpdater
                                      displayLink:displayLink
                                      httpHeaders:options.httpHeaders
-                                 audioTrackName:input.audioTrackName
+                                 audioTrackName:options.audioTrackName
                                     avFactory:_avFactory
                                           registrar:self.registrar];
     return @([self onPlayerSetup:player frameUpdater:frameUpdater]);
@@ -820,11 +820,11 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
 }
 
-- (FVPTextureMessage *)createWithHlsCachingSupport:(FVPCreateMessage *)input error:(FlutterError **)error {
-  if (input.uri != nil) {
-    NSURL* remoteUrl = [NSURL URLWithString:input.uri];
+- (nullable NSNumber *)createWithHlsCachingSupport:(nonnull FVPCreationOptions *)options error:(FlutterError **)error {
+  if (options.uri != nil) {
+    NSURL* remoteUrl = [NSURL URLWithString:options.uri];
     if(![self isHlsStream:remoteUrl]) {
-      return [self create:input error:error];
+      return [self createWithOptions:options error:error];
     }
 
     FVPFrameUpdater *frameUpdater = [[FVPFrameUpdater alloc] initWithRegistry:_registry];
@@ -836,13 +836,13 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
     FVPVideoPlayer *player;
 
-    AVURLAsset* remoteUrlAsset = [self createAVURLAssetWithHttpHeaders:input.httpHeaders remoteUrl:remoteUrl];
+    AVURLAsset* remoteUrlAsset = [self createAVURLAssetWithHttpHeaders:options.httpHeaders remoteUrl:remoteUrl];
     Asset* localAsset;
 
     Asset* asset = [[Asset alloc] initWithURLAsset:remoteUrlAsset];
 
     if (AssetPersistenceManager.sharedManager.didRestorePersistenceManager) {
-      AssetDownloadState assetDownloadState = [AssetPersistenceManager.sharedManager downloadState:asset audioTrackName:input.audioTrackName];
+      AssetDownloadState assetDownloadState = [AssetPersistenceManager.sharedManager downloadState:asset audioTrackName:options.audioTrackName];
       switch(assetDownloadState) {
         case AssetDownloaded: {
           NSLog(@"HLS asset is in cache");
@@ -860,7 +860,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
         }
         case AssetNotDownloaded: {
           NSLog(@"HLS asset is not cached, starting download");
-          [AssetPersistenceManager.sharedManager downloadStream:asset streamName:input.name audioTrackName:input.audioTrackName];
+          [AssetPersistenceManager.sharedManager downloadStream:asset streamName:options.name audioTrackName:options.audioTrackName];
           localAsset = asset;
           break;
         }
@@ -873,12 +873,12 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     player = [[FVPVideoPlayer alloc] initWithURLAsset:localAsset.urlAsset
                                          frameUpdater:frameUpdater
                                           displayLink:displayLink
-                                       audioTrackName:input.audioTrackName
+                                       audioTrackName:options.audioTrackName
                                             avFactory:_avFactory
                                             registrar:self.registrar];
-    return [self onPlayerSetup:player frameUpdater:frameUpdater];
+    return @([self onPlayerSetup:player frameUpdater:frameUpdater]);
   } else {
-    return [self create:input error:error];
+    return [self createWithOptions:options error:error];
   }
 }
 
@@ -920,7 +920,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
 }
 
-- (FVPIsHlsAvailableOfflineMessage *)isHlsAvailableOffline:(FVPHlsStreamMessage *)input error:(FlutterError **)error {
+- (nullable NSNumber *)isHlsAvailableOffline:(FVPHlsStreamMessage *)input error:(FlutterError **)error {
   NSURL* remoteUrl = [NSURL URLWithString:input.uri];
   if(remoteUrl != nil && [self isHlsStream:remoteUrl]) {
     if (AssetPersistenceManager.sharedManager.didRestorePersistenceManager) {
@@ -929,13 +929,13 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
       AssetDownloadState assetDownloadState = [AssetPersistenceManager.sharedManager downloadState:asset audioTrackName:input.audioTrackName];
       if (assetDownloadState == AssetDownloaded) {
-        return [FVPIsHlsAvailableOfflineMessage makeWithIsAvailableOffline:@true];
+        return @true;
       }
     } else {
       NSLog(@"Asset manager not initialized (did you forget to restore state in AppDelegate?)");
     }
   }
-  return [FVPIsHlsAvailableOfflineMessage makeWithIsAvailableOffline:@false];
+  return @false;
 }
 
 - (AVURLAsset*)createAVURLAssetWithHttpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders remoteUrl:(NSURL *)remoteUrl {
@@ -951,9 +951,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return [remoteUrl.pathExtension isEqualToString:@"m3u8"];
 }
 
-- (FVPAudioTrackMessage*)getAvailableAudioTracksList:(FVPTextureMessage *)input error:(FlutterError **)error {
-    NSNumber *textureId = @(input.textureId);
-  FVPVideoPlayer* player = self.playersByTextureId[textureId];
+- (FVPAudioTrackMessage*)getAvailableAudioTracksList:(NSInteger)textureId error:(FlutterError **)error {
+  FVPVideoPlayer* player = self.playersByTextureId[@(textureId)];
   NSMutableArray* audioTrackNames = [NSMutableArray array];
   AVMediaSelectionGroup *audioSelectionGroup = [[[player.player currentItem] asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
   if(audioSelectionGroup != nil) {
@@ -972,7 +971,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)setActiveAudioTrack:(nonnull FVPAudioTrackMessage *)input error:(FlutterError * _Nullable __autoreleasing * _Nonnull)error {
-  FVPVideoPlayer* player = self.playersByTextureId[input.textureId];
+  FVPVideoPlayer* player = self.playersByTextureId[@(input.textureId)];
   if(input.audioTrackNames != nil && [input.audioTrackNames count] > 0) {
     NSString* requestedAudioTrackName = input.audioTrackNames.firstObject;
     AVMediaSelectionGroup *audioSelectionGroup = [[[player.player currentItem] asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
@@ -989,7 +988,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)setActiveAudioTrackByIndex:(nonnull FVPAudioTrackMessage *)input error:(FlutterError * _Nullable __autoreleasing * _Nonnull)error {
-  FVPVideoPlayer* player = self.playersByTextureId[input.textureId];
+    FVPVideoPlayer* player = self.playersByTextureId[@(input.textureId)];
   if(input.index != nil) {
     int index = [input.index intValue];
     AVMediaSelectionGroup *audioSelectionGroup = [[[player.player currentItem] asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
