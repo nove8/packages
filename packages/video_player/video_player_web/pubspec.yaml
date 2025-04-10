@@ -2,11 +2,11 @@ name: video_player_web
 description: Web platform implementation of video_player.
 repository: https://github.com/flutter/packages/tree/main/packages/video_player/video_player_web
 issue_tracker: https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+video_player%22
-version: 2.3.1
+version: 2.3.2
 
 environment:
-  sdk: ^3.3.0
-  flutter: ">=3.19.0"
+  sdk: ^3.4.0
+  flutter: ">=3.22.0"
 
 flutter:
   plugin:
@@ -26,7 +26,7 @@ dependencies:
       url: https://github.com/nove8/packages.git
       path: packages/video_player/video_player_platform_interface
       ref: video_player-v2.9.1-nove8
-  web: ^0.5.1
+  web: ">=0.5.1 <2.0.0"
 
 dev_dependencies:
   flutter_test:
