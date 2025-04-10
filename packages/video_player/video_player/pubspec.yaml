@@ -29,22 +29,22 @@ dependencies:
     git:
       url: https://github.com/nove8/packages.git
       path: packages/video_player/video_player_android
-      ref: video_player-v2.9.0-nove8
+      ref: video_player-v2.9.1-nove8
   video_player_avfoundation:
     git:
       url: https://github.com/nove8/packages.git
       path: packages/video_player/video_player_avfoundation
-      ref: video_player-v2.9.0-nove8
+      ref: video_player-v2.9.1-nove8
   video_player_platform_interface:
     git:
       url: https://github.com/nove8/packages.git
       path: packages/video_player/video_player_platform_interface
-      ref: video_player-v2.9.0-nove8
+      ref: video_player-v2.9.1-nove8
   video_player_web:
     git:
       url: https://github.com/nove8/packages.git
       path: packages/video_player/video_player_web
-      ref: video_player-v2.9.0-nove8
+      ref: video_player-v2.9.1-nove8
 
 dev_dependencies:
   flutter_test:
