@@ -10,35 +10,22 @@ import static androidx.media3.common.Player.REPEAT_MODE_OFF;
 import android.content.Context;
 import android.view.Surface;
 import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
 import androidx.annotation.VisibleForTesting;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackParameters;
-import androidx.media3.common.Player;
-import androidx.media3.common.Player.Listener;
 import androidx.media3.common.TrackGroup;
 import androidx.media3.common.TrackSelectionOverride;
-import androidx.media3.common.TrackSelectionParameters;
-import androidx.media3.common.VideoSize;
 import androidx.media3.common.util.UnstableApi;
-import androidx.media3.datasource.DataSource;
-import androidx.media3.datasource.DefaultDataSource;
-import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.TrackGroupArray;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.exoplayer.trackselection.MappingTrackSelector;
-import io.flutter.plugin.common.EventChannel;
 import io.flutter.view.TextureRegistry;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @UnstableApi
 final class VideoPlayer {
@@ -137,8 +124,9 @@ final class VideoPlayer {
 
   @OptIn(markerClass = UnstableApi.class)
   ArrayList<String> getAvailableAudioTracksList() {
+    DefaultTrackSelector trackSelector = (DefaultTrackSelector) exoPlayer.getTrackSelector();
     MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
-    ArrayList<String> audioTrackNames = new ArrayList<String>();
+    ArrayList<String> audioTrackNames = new ArrayList<>();
     if (mappedTrackInfo == null) {
       return audioTrackNames;
     }
@@ -164,7 +152,7 @@ final class VideoPlayer {
     // To match this behavior on Android, we use this hack.
     if (audioTrackNames.size() == 1) {
       if (audioTrackNames.get(0).equals("und")) {
-        return new ArrayList<String>();
+        return new ArrayList<>();
       }
     }
     return audioTrackNames;
@@ -172,6 +160,7 @@ final class VideoPlayer {
 
   @OptIn(markerClass = UnstableApi.class)
   void setActiveAudioTrack(String audioTrackName) {
+    DefaultTrackSelector trackSelector = (DefaultTrackSelector) exoPlayer.getTrackSelector();
     MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
     if (mappedTrackInfo != null) {
       for (int rendererIndex = 0; rendererIndex < mappedTrackInfo.getRendererCount(); rendererIndex++) {
@@ -193,6 +182,7 @@ final class VideoPlayer {
 
   @OptIn(markerClass = UnstableApi.class)
   void setActiveAudioTrackByIndex(int index) {
+    DefaultTrackSelector trackSelector = (DefaultTrackSelector) exoPlayer.getTrackSelector();
     MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
     int audioIndex = 0;
     if (mappedTrackInfo != null) {
@@ -224,7 +214,9 @@ final class VideoPlayer {
   }
 
   @OptIn(markerClass = UnstableApi.class)
-  private void applyAudioTrackSettings(int rendererIndex, int trackIndex, int trackGroupIndex, MappingTrackSelector.MappedTrackInfo mappedTrackInfo) {
+  private void applyAudioTrackSettings(int rendererIndex, int trackIndex, int trackGroupIndex,
+                                       MappingTrackSelector.MappedTrackInfo mappedTrackInfo) {
+    DefaultTrackSelector trackSelector = (DefaultTrackSelector) exoPlayer.getTrackSelector();
     DefaultTrackSelector.Parameters.Builder builder = trackSelector.buildUponParameters();
     //builder.clearOverridesOfType(C.TRACK_TYPE_AUDIO);
     builder.clearOverridesOfType(rendererIndex);
