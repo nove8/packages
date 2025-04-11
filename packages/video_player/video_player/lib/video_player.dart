@@ -456,8 +456,13 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     }
 
     final int? textureId = enableHlsCaching
-        ? (await _videoPlayerPlatform.createWithHlsCachingSupport(dataSourceDescription))
-        : (await _videoPlayerPlatform.create(dataSourceDescription));
+        ? await _videoPlayerPlatform.createWithHlsCachingSupport(
+            VideoCreationOptions(
+              dataSource: dataSourceDescription,
+              viewType: VideoViewType.textureView,
+            ),
+          )
+        : await _videoPlayerPlatform.create(dataSourceDescription);
     _textureId = textureId ?? kUninitializedTextureId;
     _creatingCompleter!.complete(null);
     final Completer<void> initializingCompleter = Completer<void>();
