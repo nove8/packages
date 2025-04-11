@@ -141,7 +141,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
               handle,
               videoAsset,
               audioTrackName,
-            options);
+              options);
     }
 
     videoPlayers.put(id, videoPlayer);
@@ -194,7 +194,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     VideoPlayer player = getPlayer(textureId);
     AudioTrackMessage.Builder builder = new AudioTrackMessage.Builder();
     builder.setAudioTrackNames(player.getAvailableAudioTracksList());
-    builder.setTextureId(arg.getTextureId());
+    builder.setTextureId(textureId);
     return builder.build();
   }
 
