@@ -50,8 +50,8 @@ class CreationOptions {
 }
 
 class AudioTrackMessage {
-  AudioTrackMessage(this.textureId, this.audioTrackNames, this.index);
-  int textureId;
+  AudioTrackMessage(this.playerId, this.audioTrackNames, this.index);
+  int playerId;
   List<String?>? audioTrackNames;
   int? index;
 }
@@ -81,7 +81,7 @@ abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('setVolume:forPlayer:')
   void setVolume(double volume, int playerId);
   @ObjCSelector('getAvailableAudioTracksList:')
-  AudioTrackMessage getAvailableAudioTracksList(int textureId);
+  AudioTrackMessage getAvailableAudioTracksList(int playerId);
   @ObjCSelector('setActiveAudioTrack:')
   void setActiveAudioTrack(AudioTrackMessage msg);
   @ObjCSelector('setActiveAudioTrackByIndex:')

@@ -22,6 +22,7 @@
 @implementation FVPTextureBasedVideoPlayer
 - (instancetype)initWithAsset:(NSString *)asset
                  frameUpdater:(FVPFrameUpdater *)frameUpdater
+                audioTrackName:(nullable NSString *)audioTrackName
                   displayLink:(FVPDisplayLink *)displayLink
                     avFactory:(id<FVPAVFactory>)avFactory
                     registrar:(NSObject<FlutterPluginRegistrar> *)registrar
@@ -30,6 +31,7 @@
               frameUpdater:frameUpdater
                displayLink:displayLink
                httpHeaders:@{}
+             audioTrackName:audioTrackName
                  avFactory:avFactory
                  registrar:registrar
                 onDisposed:onDisposed];
@@ -39,6 +41,7 @@
                frameUpdater:(FVPFrameUpdater *)frameUpdater
                 displayLink:(FVPDisplayLink *)displayLink
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
+                audioTrackName:(nullable NSString *)audioTrackName
                   avFactory:(id<FVPAVFactory>)avFactory
                   registrar:(NSObject<FlutterPluginRegistrar> *)registrar
                  onDisposed:(void (^)(int64_t))onDisposed {

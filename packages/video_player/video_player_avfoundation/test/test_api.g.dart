@@ -77,7 +77,7 @@ abstract class TestHostVideoPlayerApi {
 
   void setVolume(double volume, int playerId);
 
-  AudioTrackMessage getAvailableAudioTracksList(int textureId);
+  AudioTrackMessage getAvailableAudioTracksList(int playerId);
 
   void setActiveAudioTrack(AudioTrackMessage msg);
 
@@ -262,11 +262,11 @@ abstract class TestHostVideoPlayerApi {
           assert(message != null,
           'Argument for dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.getAvailableAudioTracksList was null.');
           final List<Object?> args = (message as List<Object?>?)!;
-          final int? arg_textureId = (args[0] as int?);
-          assert(arg_textureId != null,
+          final int? arg_playerId = (args[0] as int?);
+          assert(arg_playerId != null,
               'Argument for dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.getAvailableAudioTracksList was null, expected non-null int.');
           try {
-            final AudioTrackMessage output = api.getAvailableAudioTracksList(arg_textureId!);
+            final AudioTrackMessage output = api.getAvailableAudioTracksList(arg_playerId!);
             return <Object?>[output];
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

@@ -62,10 +62,10 @@ typedef NS_ENUM(NSUInteger, FVPPlatformVideoViewType) {
 @interface FVPAudioTrackMessage : NSObject
 /// `init` unavailable to enforce nonnull fields, see the `make` class method.
 - (instancetype)init NS_UNAVAILABLE;
-+ (instancetype)makeWithTextureId:(NSInteger )textureId
++ (instancetype)makeWithPlayerId:(NSInteger )playerId
     audioTrackNames:(nullable NSArray<NSString *> *)audioTrackNames
     index:(nullable NSNumber *)index;
-@property(nonatomic, assign) NSInteger  textureId;
+@property(nonatomic, assign) NSInteger  playerId;
 @property(nonatomic, copy, nullable) NSArray<NSString *> * audioTrackNames;
 @property(nonatomic, strong, nullable) NSNumber * index;
 @end
@@ -96,7 +96,7 @@ NSObject<FlutterMessageCodec> *FVPGetMessagesCodec(void);
 - (void)setLooping:(BOOL)isLooping forPlayer:(NSInteger)playerId error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)setVolume:(double)volume forPlayer:(NSInteger)playerId error:(FlutterError *_Nullable *_Nonnull)error;
 /// @return `nil` only when `error != nil`.
-- (nullable FVPAudioTrackMessage *)getAvailableAudioTracksList:(NSInteger)textureId error:(FlutterError *_Nullable *_Nonnull)error;
+- (nullable FVPAudioTrackMessage *)getAvailableAudioTracksList:(NSInteger)playerId error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)setActiveAudioTrack:(FVPAudioTrackMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)setActiveAudioTrackByIndex:(FVPAudioTrackMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)setPlaybackSpeed:(double)speed forPlayer:(NSInteger)playerId error:(FlutterError *_Nullable *_Nonnull)error;

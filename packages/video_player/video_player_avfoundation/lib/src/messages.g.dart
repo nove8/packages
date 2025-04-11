@@ -80,7 +80,7 @@ class CreationOptions {
 
   String? audioTrackName;
 
-  Map<String?, String?> httpHeaders;
+  Map<String, String> httpHeaders;
 
   PlatformVideoViewType viewType;
 
@@ -106,7 +106,7 @@ class CreationOptions {
       formatHint: result[3] as String?,
       name: result[4] as String?,
       audioTrackName: result[5] as String?,
-      httpHeaders: (result[6] as Map<Object?, Object?>?)!.cast<String?, String?>(),
+      httpHeaders: (result[6] as Map<Object?, Object?>?)!.cast<String, String>(),
       viewType: result[7]! as PlatformVideoViewType,
     );
   }
@@ -114,12 +114,12 @@ class CreationOptions {
 
 class AudioTrackMessage {
   AudioTrackMessage({
-    required this.textureId,
+    required this.playerId,
     this.audioTrackNames,
     this.index,
   });
 
-  int textureId;
+  int playerId;
 
   List<String?>? audioTrackNames;
 
@@ -127,7 +127,7 @@ class AudioTrackMessage {
 
   Object encode() {
     return <Object?>[
-      textureId,
+      playerId,
       audioTrackNames,
       index,
     ];
@@ -136,7 +136,7 @@ class AudioTrackMessage {
   static AudioTrackMessage decode(Object result) {
     result as List<Object?>;
     return AudioTrackMessage(
-      textureId: result[0]! as int,
+      playerId: result[0]! as int,
       audioTrackNames: (result[1] as List<Object?>?)?.cast<String?>(),
       index: result[2] as int?,
     );
@@ -382,7 +382,7 @@ class AVFoundationVideoPlayerApi {
     }
   }
 
-  Future<AudioTrackMessage> getAvailableAudioTracksList(int textureId) async {
+  Future<AudioTrackMessage> getAvailableAudioTracksList(int playerId) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.video_player_avfoundation.AVFoundationVideoPlayerApi.getAvailableAudioTracksList$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -390,7 +390,7 @@ class AVFoundationVideoPlayerApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final List<Object?>? pigeonVar_replyList =
-        await pigeonVar_channel.send(<Object?>[textureId]) as List<Object?>?;
+        await pigeonVar_channel.send(<Object?>[playerId]) as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
     } else if (pigeonVar_replyList.length > 1) {

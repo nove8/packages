@@ -137,18 +137,18 @@ static id GetNullableObjectAtIndex(NSArray<id> *array, NSInteger key) {
 @end
 
 @implementation FVPAudioTrackMessage
-+ (instancetype)makeWithTextureId:(NSInteger )textureId
++ (instancetype)makeWithPlayerId:(NSInteger )playerId
     audioTrackNames:(nullable NSArray<NSString *> *)audioTrackNames
     index:(nullable NSNumber *)index {
   FVPAudioTrackMessage* pigeonResult = [[FVPAudioTrackMessage alloc] init];
-  pigeonResult.textureId = textureId;
+  pigeonResult.playerId = playerId;
   pigeonResult.audioTrackNames = audioTrackNames;
   pigeonResult.index = index;
   return pigeonResult;
 }
 + (FVPAudioTrackMessage *)fromList:(NSArray<id> *)list {
   FVPAudioTrackMessage *pigeonResult = [[FVPAudioTrackMessage alloc] init];
-  pigeonResult.textureId = [GetNullableObjectAtIndex(list, 0) integerValue];
+  pigeonResult.playerId = [GetNullableObjectAtIndex(list, 0) integerValue];
   pigeonResult.audioTrackNames = GetNullableObjectAtIndex(list, 1);
   pigeonResult.index = GetNullableObjectAtIndex(list, 2);
   return pigeonResult;
@@ -158,7 +158,7 @@ static id GetNullableObjectAtIndex(NSArray<id> *array, NSInteger key) {
 }
 - (NSArray<id> *)toList {
   return @[
-    @(self.textureId),
+    @(self.playerId),
     self.audioTrackNames ?: [NSNull null],
     self.index ?: [NSNull null],
   ];
@@ -397,9 +397,9 @@ void SetUpFVPAVFoundationVideoPlayerApiWithSuffix(id<FlutterBinaryMessenger> bin
       NSCAssert([api respondsToSelector:@selector(getAvailableAudioTracksList:error:)], @"FVPAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(getAvailableAudioTracksList:error:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray<id> *args = message;
-        NSInteger arg_textureId = [GetNullableObjectAtIndex(args, 0) integerValue];
+        NSInteger arg_playerId = [GetNullableObjectAtIndex(args, 0) integerValue];
         FlutterError *error;
-        FVPAudioTrackMessage *output = [api getAvailableAudioTracksList:arg_textureId error:&error];
+        FVPAudioTrackMessage *output = [api getAvailableAudioTracksList:arg_playerId error:&error];
         callback(wrapResult(output, error));
       }];
     } else {

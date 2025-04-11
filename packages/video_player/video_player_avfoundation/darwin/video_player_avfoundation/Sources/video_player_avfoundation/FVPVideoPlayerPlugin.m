@@ -306,13 +306,8 @@ static void upgradeAudioSessionCategory(AVAudioSessionCategory requestedCategory
       localAsset = asset;
     }
 
-    player = [[FVPVideoPlayer alloc] initWithURLAsset:localAsset.urlAsset
-                                         frameUpdater:frameUpdater
-                                          displayLink:displayLink
-                                       audioTrackName:options.audioTrackName
-                                            avFactory:_avFactory
-                                            registrar:self.registrar];
-    return @([self onPlayerSetup:player frameUpdater:frameUpdater]);
+    player = [self texturePlayerWithOptions:options];
+    return @([self onPlayerSetup:player]);
   } else {
     return [self createWithOptions:options error:error];
   }
@@ -388,8 +383,8 @@ static void upgradeAudioSessionCategory(AVAudioSessionCategory requestedCategory
   return [remoteUrl.pathExtension isEqualToString:@"m3u8"];
 }
 
-- (FVPAudioTrackMessage*)getAvailableAudioTracksList:(NSInteger)textureId error:(FlutterError **)error {
-  FVPVideoPlayer* player = self.playersByTextureId[@(textureId)];
+- (FVPAudioTrackMessage*)getAvailableAudioTracksList:(NSInteger)playerId error:(FlutterError **)error {
+  FVPVideoPlayer* player = self.playersByIdentifier[@(playerId)];
   NSMutableArray* audioTrackNames = [NSMutableArray array];
   AVMediaSelectionGroup *audioSelectionGroup = [[[player.player currentItem] asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
   if(audioSelectionGroup != nil) {
@@ -404,11 +399,11 @@ static void upgradeAudioSessionCategory(AVAudioSessionCategory requestedCategory
     }
   }
 
-  return [FVPAudioTrackMessage makeWithTextureId:textureId audioTrackNames:audioTrackNames index:@0];
+  return [FVPAudioTrackMessage makeWithPlayerId:playerId audioTrackNames:audioTrackNames index:@0];
 }
 
 - (void)setActiveAudioTrack:(nonnull FVPAudioTrackMessage *)input error:(FlutterError * _Nullable __autoreleasing * _Nonnull)error {
-  FVPVideoPlayer* player = self.playersByTextureId[@(input.textureId)];
+  FVPVideoPlayer* player = self.playersByIdentifier[@(input.playerId)];
   if(input.audioTrackNames != nil && [input.audioTrackNames count] > 0) {
     NSString* requestedAudioTrackName = input.audioTrackNames.firstObject;
     AVMediaSelectionGroup *audioSelectionGroup = [[[player.player currentItem] asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
@@ -425,7 +420,7 @@ static void upgradeAudioSessionCategory(AVAudioSessionCategory requestedCategory
 }
 
 - (void)setActiveAudioTrackByIndex:(nonnull FVPAudioTrackMessage *)input error:(FlutterError * _Nullable __autoreleasing * _Nonnull)error {
-    FVPVideoPlayer* player = self.playersByTextureId[@(input.textureId)];
+    FVPVideoPlayer* player = self.playersByIdentifier[@(input.playerId)];
   if(input.index != nil) {
     int index = [input.index intValue];
     AVMediaSelectionGroup *audioSelectionGroup = [[[player.player currentItem] asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];

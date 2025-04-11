@@ -20,6 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
                frameUpdater:(FVPFrameUpdater *)frameUpdater
                 displayLink:(FVPDisplayLink *)displayLink
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
+                audioTrackName:(nullable NSString *)audioTrackName
                   avFactory:(id<FVPAVFactory>)avFactory
                   registrar:(NSObject<FlutterPluginRegistrar> *)registrar
                  onDisposed:(void (^)(int64_t))onDisposed;
@@ -28,6 +29,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// display link, AV factory, and registrar.
 - (instancetype)initWithAsset:(NSString *)asset
                  frameUpdater:(FVPFrameUpdater *)frameUpdater
+                 audioTrackName:(nullable NSString *)audioTrackName
                   displayLink:(FVPDisplayLink *)displayLink
                     avFactory:(id<FVPAVFactory>)avFactory
                     registrar:(NSObject<FlutterPluginRegistrar> *)registrar
