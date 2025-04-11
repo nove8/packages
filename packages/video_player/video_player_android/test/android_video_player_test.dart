@@ -94,7 +94,7 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   }
 
   @override
-  AudioTrackMessage getAvailableAudioTracksList(TextureMessage msg) {
+  AudioTrackMessage getAvailableAudioTracksList(int textureId) {
     throw UnimplementedError();
   }
 

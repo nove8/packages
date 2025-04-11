@@ -94,9 +94,9 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<int?> createWithHlsCachingSupport(DataSource dataSource) {
+  Future<int?> createWithHlsCachingSupport(VideoCreationOptions options) {
     // HLS caching is not supported on Android
-    return create(dataSource);
+    return createWithOptions(options);
   }
 
   @override
@@ -133,9 +133,7 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<List<String?>> getAvailableAudioTracksList(int textureId) async {
-    final AudioTrackMessage audioTrackMessage = await _api.getAvailableAudioTracksList(
-      TextureMessage(textureId: textureId),
-    );
+    final AudioTrackMessage audioTrackMessage = await _api.getAvailableAudioTracksList(textureId);
     return audioTrackMessage.audioTrackNames!;
   }
 
