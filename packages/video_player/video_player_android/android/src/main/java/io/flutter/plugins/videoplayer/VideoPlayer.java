@@ -7,12 +7,8 @@ package io.flutter.plugins.videoplayer;
 import static androidx.media3.common.Player.REPEAT_MODE_ALL;
 import static androidx.media3.common.Player.REPEAT_MODE_OFF;
 
-import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
-import androidx.annotation.Nullable;
-import androidx.annotation.RestrictTo;
-import androidx.annotation.VisibleForTesting;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
@@ -22,121 +18,57 @@ import androidx.media3.common.TrackGroup;
 import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.ExoPlayer;
-import androidx.media3.exoplayer.source.TrackGroupArray;
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
-import androidx.media3.exoplayer.trackselection.MappingTrackSelector;
-import io.flutter.view.TextureRegistry;
-import java.util.ArrayList;
 
-@UnstableApi
-final class VideoPlayer implements TextureRegistry.SurfaceProducer.Callback {
+/**
+ * A class responsible for managing video playback using {@link ExoPlayer}.
+ *
+ * <p>It provides methods to control playback, adjust volume, and handle seeking.
+ */
+public abstract class VideoPlayer {
   @NonNull private final ExoPlayerProvider exoPlayerProvider;
   @NonNull private final MediaItem mediaItem;
-  @NonNull private final TextureRegistry.SurfaceProducer surfaceProducer;
-  @NonNull private final VideoPlayerCallbacks videoPlayerEvents;
   @NonNull private final VideoPlayerOptions options;
-  @NonNull private ExoPlayer exoPlayer;
-  @Nullable private ExoPlayerState savedStateDuring;
-
-  /**
-   * Creates a video player.
-   *
-   * @param context application context.
-   * @param events event callbacks.
-   * @param surfaceProducer produces a texture to render to.
-   * @param asset asset to play.
-   * @param options options for playback.
-   * @return a video player instance.
-   */
-  @NonNull
-  static VideoPlayer create(
-      @NonNull Context context,
-      @NonNull VideoPlayerCallbacks events,
-      @NonNull TextureRegistry.SurfaceProducer surfaceProducer,
-      @NonNull VideoAsset asset,
-      @Nullable String audioTrackName,
-      @NonNull VideoPlayerOptions options) {
-    return new VideoPlayer(
-        () -> {
-          DefaultTrackSelector trackSelector = new DefaultTrackSelector(context);
-          if (audioTrackName != null) {
-            trackSelector.setParameters(
-                trackSelector
-                    .buildUponParameters()
-                    .setPreferredAudioLanguage(audioTrackName));
-          }
-
-          ExoPlayer.Builder builder =
-              new ExoPlayer.Builder(context)
-                  .setMediaSourceFactory(asset.getMediaSourceFactory(context))
-                  .setTrackSelector(trackSelector);
-          return builder.build();
-        },
-        events,
-        surfaceProducer,
-        asset.getMediaItem(),
-        options);
-  }
+  @NonNull protected final VideoPlayerCallbacks videoPlayerEvents;
+  @NonNull protected ExoPlayer exoPlayer;
 
   /** A closure-compatible signature since {@link java.util.function.Supplier} is API level 24. */
-  interface ExoPlayerProvider {
+  public interface ExoPlayerProvider {
     /**
      * Returns a new {@link ExoPlayer}.
      *
      * @return new instance.
      */
+    @NonNull
     ExoPlayer get();
   }
 
-  @VisibleForTesting
-  VideoPlayer(
-      @NonNull ExoPlayerProvider exoPlayerProvider,
+  public VideoPlayer(
       @NonNull VideoPlayerCallbacks events,
-      @NonNull TextureRegistry.SurfaceProducer surfaceProducer,
       @NonNull MediaItem mediaItem,
-      @NonNull VideoPlayerOptions options) {
-    this.exoPlayerProvider = exoPlayerProvider;
+      @NonNull VideoPlayerOptions options,
+      @NonNull ExoPlayerProvider exoPlayerProvider) {
     this.videoPlayerEvents = events;
-    this.surfaceProducer = surfaceProducer;
     this.mediaItem = mediaItem;
     this.options = options;
+    this.exoPlayerProvider = exoPlayerProvider;
     this.exoPlayer = createVideoPlayer();
-    surfaceProducer.setCallback(this);
   }
 
-  @RestrictTo(RestrictTo.Scope.LIBRARY)
-  public void onSurfaceAvailable() {
-    if (savedStateDuring != null) {
-      exoPlayer = createVideoPlayer();
-      savedStateDuring.restore(exoPlayer);
-      savedStateDuring = null;
-    }
-  }
-
-  @RestrictTo(RestrictTo.Scope.LIBRARY)
-  // TODO(bparrishMines): Replace with onSurfaceCleanup once available on stable. See
-  // https://github.com/flutter/flutter/issues/161256.
-  @SuppressWarnings({"deprecation", "removal"})
-  public void onSurfaceDestroyed() {
-    // Intentionally do not call pause/stop here, because the surface has already been released
-    // at this point (see https://github.com/flutter/flutter/issues/156451).
-    savedStateDuring = ExoPlayerState.save(exoPlayer);
-    exoPlayer.release();
-  }
-
-  private ExoPlayer createVideoPlayer() {
+  @NonNull
+  protected ExoPlayer createVideoPlayer() {
     ExoPlayer exoPlayer = exoPlayerProvider.get();
     exoPlayer.setMediaItem(mediaItem);
     exoPlayer.prepare();
 
-    exoPlayer.setVideoSurface(surfaceProducer.getSurface());
-
-    boolean wasInitialized = savedStateDuring != null;
-    exoPlayer.addListener(new ExoPlayerEventListener(exoPlayer, videoPlayerEvents, wasInitialized));
+    exoPlayer.addListener(createExoPlayerEventListener(exoPlayer));
     setAudioAttributes(exoPlayer, options.mixWithOthers);
 
     return exoPlayer;
   }
+
+  @NonNull
+  protected abstract ExoPlayerEventListener createExoPlayerEventListener(
+      @NonNull ExoPlayer exoPlayer);
 
   void sendBufferingUpdate() {
     videoPlayerEvents.onBufferingUpdate(exoPlayer.getBufferedPosition());
@@ -286,12 +218,12 @@ final class VideoPlayer implements TextureRegistry.SurfaceProducer.Callback {
     return exoPlayer.getCurrentPosition();
   }
 
-  void dispose() {
-    exoPlayer.release();
-    surfaceProducer.release();
+  @NonNull
+  public ExoPlayer getExoPlayer() {
+    return exoPlayer;
+  }
 
-    // TODO(matanlurey): Remove when embedder no longer calls-back once released.
-    // https://github.com/flutter/flutter/issues/156434.
-    surfaceProducer.setCallback(null);
+  public void dispose() {
+    exoPlayer.release();
   }
 }
