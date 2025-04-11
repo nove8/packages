@@ -101,17 +101,17 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   }
 
   /// Returns a [List] of available audio tracks.
-  Future<List<Object?>> getAvailableAudioTracksList(int textureId) {
+  Future<List<Object?>> getAvailableAudioTracksList(int playerId) {
     throw UnimplementedError('getAvailableAudioTracksList() has not been implemented');
   }
 
   /// Sets the active audio track by it's [audioTrackName].
-  Future<void> setActiveAudioTrack(int textureId, String audioTrackName) {
+  Future<void> setActiveAudioTrack(int playerId, String audioTrackName) {
     throw UnimplementedError('setActiveAudioTrack() has not been implemented');
   }
 
   /// Sets the active audio track by it's [index].
-  Future<void> setActiveAudioTrackByIndex(int textureId, int index) {
+  Future<void> setActiveAudioTrackByIndex(int playerId, int index) {
     throw UnimplementedError('setActiveAudioTrackByIndex() has not been implemented');
   }
 
