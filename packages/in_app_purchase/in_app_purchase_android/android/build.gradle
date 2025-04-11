@@ -26,15 +26,12 @@ android {
         buildConfig true
     }
 
-    // Conditional for compatibility with AGP <4.2.
-    if (project.android.hasProperty("namespace")) {
-        namespace 'io.flutter.plugins.inapppurchase'
-    }
+    namespace 'io.flutter.plugins.inapppurchase'
     
     compileSdk 34
 
     defaultConfig {
-        minSdk 19
+        minSdk 21
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     lintOptions {
@@ -43,8 +40,8 @@ android {
         disable 'AndroidGradlePluginVersion', 'InvalidPackage', 'GradleDependency', 'NewerVersionAvailable'
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
 
@@ -62,10 +59,10 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.annotation:annotation:1.8.2'
-    implementation 'com.android.billingclient:billing:6.2.0'
+    implementation 'androidx.annotation:annotation:1.9.1'
+    implementation 'com.android.billingclient:billing:7.1.1'
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.json:json:20240303'
+    testImplementation 'org.json:json:20250107'
     testImplementation 'org.mockito:mockito-core:5.4.0'
     testImplementation 'androidx.test:core:1.5.0'
     testImplementation 'org.robolectric:robolectric:4.10.3'

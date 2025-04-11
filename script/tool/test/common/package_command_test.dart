@@ -204,6 +204,24 @@ void main() {
       expect(command.plugins, unorderedEquals(<String>[]));
     });
 
+    test('exclude accepts empty config files', () async {
+      final RepositoryPackage plugin1 =
+          createFakePlugin('plugin1', packagesDir);
+      final File configFile1 = packagesDir.childFile('exclude1.yaml');
+      configFile1.createSync();
+      final File configFile2 = packagesDir.childFile('exclude2.yaml');
+      configFile2.writeAsStringSync('\n');
+      final File configFile3 = packagesDir.childFile('exclude3.yaml');
+      configFile3.writeAsStringSync('# - plugin1');
+
+      await runCapturingPrint(runner, <String>[
+        'sample',
+        '--packages=plugin1',
+        '--exclude=${configFile1.path},${configFile2.path},${configFile3.path}',
+      ]);
+      expect(command.plugins, unorderedEquals(<String>[plugin1.path]));
+    });
+
     test('filter-packages-to accepts config files', () async {
       final RepositoryPackage plugin1 =
           createFakePlugin('plugin1', packagesDir);
@@ -447,6 +465,19 @@ packages/plugin1/plugin1/plugin1.dart
         final RepositoryPackage package =
             createFakePlugin('a_package', packagesDir);
         createFakePlugin('another_package', packagesDir);
+        fileSystem.currentDirectory = package.directory;
+
+        await runCapturingPrint(
+            runner, <String>['sample', '--current-package']);
+
+        expect(command.plugins, unorderedEquals(<String>[package.path]));
+      });
+
+      test('runs on a package when run from the third_party/packages directory',
+          () async {
+        final RepositoryPackage package =
+            createFakePlugin('a_package', thirdPartyPackagesDir);
+        createFakePlugin('another_package', thirdPartyPackagesDir);
         fileSystem.currentDirectory = package.directory;
 
         await runCapturingPrint(

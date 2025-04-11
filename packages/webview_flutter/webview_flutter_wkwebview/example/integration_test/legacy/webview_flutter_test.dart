@@ -16,8 +16,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webview_flutter_platform_interface/src/webview_flutter_platform_interface_legacy.dart';
-import 'package:webview_flutter_wkwebview/src/common/instance_manager.dart';
 import 'package:webview_flutter_wkwebview/src/common/weak_reference_utils.dart';
+import 'package:webview_flutter_wkwebview/src/common/web_kit.g.dart';
 import 'package:webview_flutter_wkwebview_example/legacy/navigation_decision.dart';
 import 'package:webview_flutter_wkwebview_example/legacy/navigation_request.dart';
 import 'package:webview_flutter_wkwebview_example/legacy/web_view.dart';
@@ -29,7 +29,8 @@ const bool skipOnIosFor154676 = true;
 Future<void> main() async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  final HttpServer server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+  final HttpServer server =
+      await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   unawaited(server.forEach((HttpRequest request) {
     if (request.uri.path == '/hello.txt') {
       request.response.writeln('Hello, world.');
@@ -78,7 +79,7 @@ Future<void> main() async {
       'withWeakRefenceTo allows encapsulating class to be garbage collected',
       (WidgetTester tester) async {
     final Completer<int> gcCompleter = Completer<int>();
-    final InstanceManager instanceManager = InstanceManager(
+    final PigeonInstanceManager instanceManager = PigeonInstanceManager(
       onWeakReferenceRemoved: gcCompleter.complete,
     );
 
@@ -917,7 +918,7 @@ Future<void> main() async {
             },
             javascriptMode: JavascriptMode.unrestricted,
             navigationDelegate: (NavigationRequest request) {
-              return (request.url.contains('youtube.com'))
+              return request.url.contains('youtube.com')
                   ? NavigationDecision.prevent
                   : NavigationDecision.navigate;
             },
@@ -1047,7 +1048,7 @@ Future<void> main() async {
             },
             javascriptMode: JavascriptMode.unrestricted,
             navigationDelegate: (NavigationRequest request) {
-              return (request.url.contains('youtube.com'))
+              return request.url.contains('youtube.com')
                   ? NavigationDecision.prevent
                   : NavigationDecision.navigate;
             },
@@ -1286,13 +1287,14 @@ class ResizableWebViewState extends State<ResizableWebView> {
   }
 }
 
-class CopyableObjectWithCallback with Copyable {
+class CopyableObjectWithCallback extends PigeonInternalProxyApiBaseClass {
   CopyableObjectWithCallback(this.callback);
 
   final VoidCallback callback;
 
   @override
-  CopyableObjectWithCallback copy() {
+  // ignore: non_constant_identifier_names
+  CopyableObjectWithCallback pigeon_copy() {
     return CopyableObjectWithCallback(callback);
   }
 }

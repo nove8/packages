@@ -1,3 +1,44 @@
+## 0.6.13
+
+* Adds API support query for image streaming.
+
+## 0.6.12
+
+* Suppresses deprecation and removal warnings for
+  `TextureRegistry.SurfaceProducer.onSurfaceDestroyed`.
+* Removes logic added to correct the rotation of the camera preview, since it is no longer required.
+
+## 0.6.11
+
+* Replaces deprecated Android embedder APIs (`onSurfaceCreated` -> `onSurfaceAvailable`).
+* Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
+
+## 0.6.10+3
+
+* Bumps com.google.guava:guava from 33.3.1-android to 33.4.0-android.
+
+## 0.6.10+2
+
+* Bumps camerax_version from 1.3.4 to 1.4.1.
+
+## 0.6.10+1
+
+* Removes nonnull annotation from MeteringPointHostApiImpl#getDefaultPointSize.
+
+## 0.6.10
+
+* Removes logic that explicitly removes `READ_EXTERNAL_STORAGE` permission that may be implied
+  from `WRITE_EXTERNAL_STORAGE` and updates the README to tell users how to manually
+  remove it from their app's merged manifest if they wish.
+
+## 0.6.9+2
+
+* Updates Java compatibility version to 11.
+
+## 0.6.9+1
+
+* Bumps `com.google.guava:guava` from `33.3.0` to `33.3.1`.
+
 ## 0.6.9
 
 * Corrects assumption about automatic preview correction happening on API >= 29 to API > 29,

@@ -17,8 +17,28 @@ import 'package:pigeon/pigeon.dart';
   ),
   copyrightHeader: 'pigeons/copyright.txt',
 ))
+
+/// Pigeon equivalent of VideoViewType.
+enum PlatformVideoViewType {
+  textureView,
+  platformView,
+}
+
+/// Information passed to the platform view creation.
+class PlatformVideoViewCreationParams {
+  const PlatformVideoViewCreationParams({
+    required this.playerId,
+  });
+
+  final int playerId;
+}
+
 class CreationOptions {
-  CreationOptions({required this.httpHeaders});
+  CreationOptions({
+    required this.httpHeaders,
+    required this.viewType,
+  });
+
   String? asset;
   String? uri;
   String? packageName;
@@ -40,12 +60,8 @@ class HlsStreamMessage {
   String uri;
   String? name;
   String? audioTrackName;
-  Map<String?, String?> httpHeaders;
-}
-
-class MixWithOthersMessage {
-  MixWithOthersMessage(this.mixWithOthers);
-  bool mixWithOthers;
+  Map<String, String> httpHeaders;
+  PlatformVideoViewType viewType;
 }
 
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
@@ -59,11 +75,11 @@ abstract class AVFoundationVideoPlayerApi {
   // Creates a new player and returns its ID.
   int createWithHlsCachingSupport(CreationOptions creationOptions);
   @ObjCSelector('disposePlayer:')
-  void dispose(int textureId);
+  void dispose(int playerId);
   @ObjCSelector('setLooping:forPlayer:')
-  void setLooping(bool isLooping, int textureId);
+  void setLooping(bool isLooping, int playerId);
   @ObjCSelector('setVolume:forPlayer:')
-  void setVolume(double volume, int textureId);
+  void setVolume(double volume, int playerId);
   @ObjCSelector('getAvailableAudioTracksList:')
   AudioTrackMessage getAvailableAudioTracksList(int textureId);
   @ObjCSelector('setActiveAudioTrack:')
@@ -71,20 +87,20 @@ abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('setActiveAudioTrackByIndex:')
   void setActiveAudioTrackByIndex(AudioTrackMessage msg);
   @ObjCSelector('setPlaybackSpeed:forPlayer:')
-  void setPlaybackSpeed(double speed, int textureId);
+  void setPlaybackSpeed(double speed, int playerId);
   @ObjCSelector('startHlsStreamCachingIfNeeded:')
   void startHlsStreamCachingIfNeeded(HlsStreamMessage msg);
   @ObjCSelector('isHlsAvailableOffline:')
   int isHlsAvailableOffline(HlsStreamMessage msg);
   @ObjCSelector('playPlayer:')
-  void play(int textureId);
+  void play(int playerId);
   @ObjCSelector('positionForPlayer:')
-  int getPosition(int textureId);
+  int getPosition(int playerId);
   @async
   @ObjCSelector('seekTo:forPlayer:')
-  void seekTo(int position, int textureId);
+  void seekTo(int position, int playerId);
   @ObjCSelector('pausePlayer:')
-  void pause(int textureId);
+  void pause(int playerId);
   @ObjCSelector('setMixWithOthers:')
   void setMixWithOthers(bool mixWithOthers);
 }

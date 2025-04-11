@@ -1,8 +1,22 @@
-## 3.1.0-wip
+## NEXT
+
+* Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
+
+## 4.0.0
+
+* **Breaking change:** Removes `CompilationOptions.renderer` and the
+  `WebRenderer` enum.
+
+## 3.1.1
+
+* Adds `missing_code_block_language_in_doc_comment` lint.
+
+## 3.1.0
 
 * Add `flutter_frame.total_time`, `flutter_frame.build_time`, and `flutter_frame.raster_time`
 metrics to benchmark results. These values are derived from the Flutter `FrameTiming` API.
 * Expose a new library `metrics.dart` that contains definitions for the benchmark metrics.
+* Add p50, p90, and p95 metrics for benchmark scores.
 
 ## 3.0.0
 

@@ -29,6 +29,8 @@
 - convert
 - crypto
 - dart_style
+- devtools_app_shared
+- devtools_extensions
 - fake_async
 - ffi
 - gcloud
@@ -39,13 +41,17 @@
 - io
 - js
 - json_serializable
+- leak_tracker_flutter_testing
 - lints
 - logging
 - markdown
 - meta
 - mime
+- mockito
 - path
+- package_config
 - platform
+- pub_semver
 - shelf
 - shelf_static
 - source_gen
@@ -60,6 +66,7 @@
 - _discoveryapis_commons
 - adaptive_navigation
 - file
+- file_testing
 - googleapis
 - googleapis_auth
 - json_annotation

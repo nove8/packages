@@ -4,7 +4,7 @@
 # These names are just suggestions. It is fine to have your changes
 # reviewed by someone else.
 
-packages/animations/**                                   @goderbauer
+packages/animations/**                                   @hannah-hyj
 packages/camera/**                                       @bparrishMines
 packages/cross_file/**                                   @ditman
 packages/css_colors/**                                   @stuartmorgan
@@ -12,12 +12,13 @@ packages/extension_google_sign_in_as_googleapis_auth/**  @ditman
 packages/file_selector/**                                @stuartmorgan
 packages/flutter_adaptive_scaffold/**                    @gspencergoog
 packages/flutter_image/**                                @stuartmorgan
-packages/flutter_lints/**                                @goderbauer
+packages/flutter_lints/**                                @chunhtai
 packages/flutter_markdown/**                             @domesticmouse
 packages/flutter_migrate/**                              @stuartmorgan
 packages/flutter_template_images/**                      @stuartmorgan
 packages/go_router/**                                    @chunhtai
 packages/go_router_builder/**                            @chunhtai
+packages/google_adsense/**                               @sokoloff06 @ditman
 packages/google_identity_services_web/**                 @ditman
 packages/google_maps_flutter/**                          @stuartmorgan
 packages/google_sign_in/**                               @stuartmorgan
@@ -40,12 +41,18 @@ packages/shared_preferences/**                           @tarrinneal
 packages/standard_message_codec/**                       @jonahwilliams
 packages/two_dimensional_scrollables/**                  @Piinks
 packages/url_launcher/**                                 @stuartmorgan
+packages/vector_graphics/**                              @jonahwilliams
+packages/vector_graphics_codec/**                        @jonahwilliams
+packages/vector_graphics_compiler/**                     @jonahwilliams
 packages/video_player/**                                 @tarrinneal
 packages/web_benchmarks/**                               @yjbanov
 packages/webview_flutter/**                              @bparrishMines
 packages/xdg_directories/**                              @stuartmorgan
 third_party/packages/cupertino_icons/**                  @MitchellGoodwin
 third_party/packages/cupertino_icons/test/goldens/**     @LongCatIsLooong
+third_party/packages/flutter_svg/**                      @domesticmouse
+third_party/packages/flutter_svg_test/**                 @domesticmouse
+third_party/packages/path_parsing/**                     @domesticmouse
 
 # Plugin platform implementation rules. These should stay last, since the last
 # matching entry takes precedence.
@@ -117,3 +124,7 @@ packages/local_auth/local_auth_windows/**                @cbracken
 packages/path_provider/path_provider_windows/**          @cbracken
 packages/shared_preferences/shared_preferences_windows/** @cbracken
 packages/url_launcher/url_launcher_windows/**            @cbracken
+
+# - DevTools extensions
+# @adsonpleal is the actual maintainer of shared_preferences_tool but is not yet a committer, so can't be listed as the owner.
+packages/shared_preferences/shared_preferences_tool/**  @tarrinneal

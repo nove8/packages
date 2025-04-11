@@ -68,8 +68,6 @@ class AVFoundationCamera extends CameraPlatform {
   Future<List<CameraDescription>> availableCameras() async {
     try {
       return (await _hostApi.getAvailableCameras())
-          // See comment in messages.dart for why this is safe.
-          .map((PlatformCameraDescription? c) => c!)
           .map(cameraDescriptionFromPlatform)
           .toList();
     } on PlatformException catch (e) {
@@ -238,6 +236,9 @@ class AVFoundationCamera extends CameraPlatform {
   Future<void> resumeVideoRecording(int cameraId) async {
     await _hostApi.resumeVideoRecording();
   }
+
+  @override
+  bool supportsImageStreaming() => true;
 
   @override
   Stream<CameraImageData> onStreamedFrameAvailable(int cameraId,

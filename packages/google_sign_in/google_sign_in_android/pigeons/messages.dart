@@ -35,10 +35,7 @@ class InitParams {
     this.forceCodeForRefreshToken = false,
   });
 
-  // TODO(stuartmorgan): Make the generic type non-nullable once supported.
-  // https://github.com/flutter/flutter/issues/97848
-  // The Java code treats the values as non-nullable.
-  final List<String?> scopes;
+  final List<String> scopes;
   final SignInType signInType;
   final String? hostedDomain;
   final String? clientId;
@@ -82,6 +79,7 @@ abstract class GoogleSignInApi {
 
   /// Requests the access token for the current sign in.
   @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   String getAccessToken(String email, bool shouldRecoverAuth);
 
   /// Signs out the current user.
@@ -97,7 +95,7 @@ abstract class GoogleSignInApi {
 
   /// Clears the authentication caching for the given token, requiring a
   /// new sign in.
-  @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void clearAuthCache(String token);
 
   /// Requests access to the given scopes.

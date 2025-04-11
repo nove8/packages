@@ -9,7 +9,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rfw/formats.dart' show parseLibraryFile;
 import 'package:rfw/rfw.dart';
 
+import 'tolerant_comparator.dart'
+    if (dart.library.js_interop) 'tolerant_comparator_web.dart';
 import 'utils.dart';
+
+/// A const to tell apart Wasm from JS web.
+///
+/// This is used below to do comparisons of numbers, where in JS a whole double
+/// is serialized as "2", in Wasm (and non-web platforms) it's "2.0".
+const bool kIsJS = kIsWeb && !kIsWasm;
 
 void main() {
   const LibraryName coreName = LibraryName(<String>['core']);
@@ -17,10 +25,19 @@ void main() {
   const LibraryName testName = LibraryName(<String>['test']);
 
   Runtime setupRuntime() {
-    return Runtime()
+    final Runtime runtime = Runtime()
       ..update(coreName, createCoreWidgets())
       ..update(materialName, createMaterialWidgets());
+    addTearDown(runtime.dispose);
+    return runtime;
   }
+
+  setUpAll(() {
+    setUpTolerantComparator(
+      testPath: 'test/material_widget_test.dart',
+      precisionTolerance: 0.00002,
+    );
+  });
 
   testWidgets('Material widgets', (WidgetTester tester) async {
     final Runtime runtime = setupRuntime();
@@ -220,7 +237,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(eventLog, contains('menu_item {args: second}'));
     expect(eventLog,
-        contains(kIsWeb ? 'dropdown {value: 2}' : 'dropdown {value: 2.0}'));
+        contains(kIsJS ? 'dropdown {value: 2}' : 'dropdown {value: 2.0}'));
 
     await tester.tapAt(const Offset(20.0, 20.0));
     await tester.pump();
@@ -673,15 +690,15 @@ void main() {
     await _slideToValue(tester, sliderFinder, 20.0);
     await tester.pumpAndSettle();
     expect(eventLog,
-        contains(kIsWeb ? 'slider {value: 20}' : 'slider {value: 20.0}'));
+        contains(kIsJS ? 'slider {value: 20}' : 'slider {value: 20.0}'));
     expect(
         eventLog,
         contains(
-            kIsWeb ? 'slider.start {value: 0}' : 'slider.start {value: 0.0}'));
+            kIsJS ? 'slider.start {value: 0}' : 'slider.start {value: 0.0}'));
     expect(
         eventLog,
         contains(
-            kIsWeb ? 'slider.end {value: 20}' : 'slider.end {value: 20.0}'));
+            kIsJS ? 'slider.end {value: 20}' : 'slider.end {value: 20.0}'));
   });
 }
 

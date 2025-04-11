@@ -36,12 +36,9 @@ class RouteConfiguration {
     for (final RouteBase route in routes) {
       late bool subRouteIsTopLevel;
       if (route is GoRoute) {
-        if (isTopLevel) {
-          assert(route.path.startsWith('/'),
-              'top-level path must start with "/": $route');
-        } else {
-          assert(!route.path.startsWith('/') && !route.path.endsWith('/'),
-              'sub-route path may not start or end with "/": $route');
+        if (route.path != '/') {
+          assert(!route.path.endsWith('/'),
+              'route path may not end with "/" except for the top "/" route. Found: $route');
         }
         subRouteIsTopLevel = false;
       } else if (route is ShellRouteBase) {
@@ -256,12 +253,14 @@ class RouteConfiguration {
     String name, {
     Map<String, String> pathParameters = const <String, String>{},
     Map<String, dynamic> queryParameters = const <String, dynamic>{},
+    String? fragment,
   }) {
     assert(() {
       log('getting location for name: '
           '"$name"'
           '${pathParameters.isEmpty ? '' : ', pathParameters: $pathParameters'}'
-          '${queryParameters.isEmpty ? '' : ', queryParameters: $queryParameters'}');
+          '${queryParameters.isEmpty ? '' : ', queryParameters: $queryParameters'}'
+          '${fragment != null ? ', fragment: $fragment' : ''}');
       return true;
     }());
     assert(_nameToPath.containsKey(name), 'unknown route name: $name');
@@ -288,7 +287,8 @@ class RouteConfiguration {
     final String location = patternToPath(path, encodedParams);
     return Uri(
             path: location,
-            queryParameters: queryParameters.isEmpty ? null : queryParameters)
+            queryParameters: queryParameters.isEmpty ? null : queryParameters,
+            fragment: fragment)
         .toString();
   }
 

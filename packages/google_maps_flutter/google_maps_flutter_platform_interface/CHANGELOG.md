@@ -1,3 +1,21 @@
+## 2.11.0
+
+* Adds support for animating the camera with a duration.
+
+## 2.10.0
+
+* Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
+* Adds support for ground overlay.
+
+## 2.9.5
+
+* Converts `BitmapDescriptor` to typesafe structures.
+
+## 2.9.4
+
+* Converts `PatternItem` to typesafe structure.
+* Converts `Cap` to typesafe structure.
+
 ## 2.9.3
 
 * Corrects an incorrect comment in polyline.dart file.

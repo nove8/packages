@@ -22,6 +22,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -171,7 +172,7 @@ public final class VideoPlayerTest {
   }
 
   @Test
-  public void onSurfaceProducerDestroyedAndRecreatedReleasesAndThenRecreatesAndResumesPlayer() {
+  public void onSurfaceProducerDestroyedAndAvailableReleasesAndThenRecreatesAndResumesPlayer() {
     VideoPlayer videoPlayer = createVideoPlayer();
 
     verify(mockProducer).setCallback(callbackCaptor.capture());
@@ -183,13 +184,13 @@ public final class VideoPlayerTest {
     when(mockExoPlayer.getPlaybackParameters()).thenReturn(new PlaybackParameters(2.5f));
 
     TextureRegistry.SurfaceProducer.Callback producerLifecycle = callbackCaptor.getValue();
-    producerLifecycle.onSurfaceDestroyed();
+    simulateSurfaceDestruction(producerLifecycle);
 
     verify(mockExoPlayer).release();
 
     // Create a new mock exo player so that we get a new instance.
     mockExoPlayer = mock(ExoPlayer.class);
-    producerLifecycle.onSurfaceCreated();
+    producerLifecycle.onSurfaceAvailable();
 
     verify(mockExoPlayer).seekTo(10L);
     verify(mockExoPlayer).setRepeatMode(Player.REPEAT_MODE_ALL);
@@ -200,7 +201,32 @@ public final class VideoPlayerTest {
   }
 
   @Test
-  public void onInitializedCalledWhenVideoPlayerInitiallyCreated() {
+  public void onSurfaceProducerDestroyedDoesNotStopOrPauseVideo() {
+    VideoPlayer videoPlayer = createVideoPlayer();
+
+    verify(mockProducer).setCallback(callbackCaptor.capture());
+    TextureRegistry.SurfaceProducer.Callback producerLifecycle = callbackCaptor.getValue();
+    simulateSurfaceDestruction(producerLifecycle);
+
+    verify(mockExoPlayer, never()).stop();
+    verify(mockExoPlayer, never()).pause();
+    verify(mockExoPlayer, never()).setPlayWhenReady(anyBoolean());
+
+    videoPlayer.dispose();
+  }
+
+  @Test
+  public void onDisposeSurfaceProducerCallbackIsDisconnected() {
+    // Regression test for https://github.com/flutter/flutter/issues/156158.
+    VideoPlayer videoPlayer = createVideoPlayer();
+    verify(mockProducer).setCallback(any());
+
+    videoPlayer.dispose();
+    verify(mockProducer).setCallback(null);
+  }
+
+  @Test
+  public void onInitializedCalledWhenVideoPlayerInitiallyAvailable() {
     VideoPlayer videoPlayer = createVideoPlayer();
 
     // Pretend we have a video, and capture the registered event listener.
@@ -216,7 +242,7 @@ public final class VideoPlayerTest {
   }
 
   @Test
-  public void onSurfaceCreatedDoesNotSendInitializeEventAgain() {
+  public void onSurfaceAvailableDoesNotSendInitializeEventAgain() {
     // The VideoPlayer contract assumes that the event "initialized" is sent exactly once
     // (duplicate events cause an error to be thrown at the shared Dart layer). This test verifies
     // that the onInitialized event is sent exactly once per player.
@@ -225,13 +251,13 @@ public final class VideoPlayerTest {
     VideoPlayer videoPlayer = createVideoPlayer();
     when(mockExoPlayer.getVideoSize()).thenReturn(new VideoSize(300, 200));
 
-    // Capture the lifecycle events so we can simulate onSurfaceCreated/Destroyed.
+    // Capture the lifecycle events so we can simulate onSurfaceAvailableDestroyed.
     verify(mockProducer).setCallback(callbackCaptor.capture());
     TextureRegistry.SurfaceProducer.Callback producerLifecycle = callbackCaptor.getValue();
 
-    // Trigger destroyed/created.
-    producerLifecycle.onSurfaceDestroyed();
-    producerLifecycle.onSurfaceCreated();
+    // Trigger destroyed/available.
+    simulateSurfaceDestruction(producerLifecycle);
+    producerLifecycle.onSurfaceAvailable();
 
     // Initial listener, and the new one from the resume.
     verify(mockExoPlayer, times(2)).addListener(listenerCaptor.capture());
@@ -247,28 +273,40 @@ public final class VideoPlayerTest {
   }
 
   @Test
-  public void onSurfaceCreatedWithoutDestroyDoesNotRecreate() {
+  public void onSurfaceAvailableWithoutDestroyDoesNotRecreate() {
     // Initially create the video player, which creates the initial surface.
     VideoPlayer videoPlayer = createVideoPlayer();
     verify(mockProducer).getSurface();
 
-    // Capture the lifecycle events so we can simulate onSurfaceCreated/Destroyed.
+    // Capture the lifecycle events so we can simulate onSurfaceAvailable/Destroyed.
     verify(mockProducer).setCallback(callbackCaptor.capture());
     TextureRegistry.SurfaceProducer.Callback producerLifecycle = callbackCaptor.getValue();
 
-    // Calling onSurfaceCreated does not do anything, since the surface was never destroyed.
-    producerLifecycle.onSurfaceCreated();
+    // Calling onSurfaceAvailable does not do anything, since the surface was never destroyed.
+    producerLifecycle.onSurfaceAvailable();
     verifyNoMoreInteractions(mockProducer);
 
     videoPlayer.dispose();
   }
 
   @Test
-  public void disposeReleasesTextureAndPlayer() {
+  public void disposeReleasesExoPlayerBeforeTexture() {
     VideoPlayer videoPlayer = createVideoPlayer();
+
     videoPlayer.dispose();
 
-    verify(mockProducer).release();
-    verify(mockExoPlayer).release();
+    // Regression test for https://github.com/flutter/flutter/issues/156158.
+    // The player must be destroyed before the surface it is writing to.
+    InOrder inOrder = inOrder(mockExoPlayer, mockProducer);
+    inOrder.verify(mockExoPlayer).release();
+    inOrder.verify(mockProducer).release();
+  }
+
+  // TODO(bparrishMines): Replace with inline calls to onSurfaceCleanup once available on stable;
+  // see https://github.com/flutter/flutter/issues/16125. This separate method only exists to scope
+  // the suppression.
+  @SuppressWarnings({"deprecation", "removal"})
+  void simulateSurfaceDestruction(TextureRegistry.SurfaceProducer.Callback producerLifecycle) {
+    producerLifecycle.onSurfaceDestroyed();
   }
 }

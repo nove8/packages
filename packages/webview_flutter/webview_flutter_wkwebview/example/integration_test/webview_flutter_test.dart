@@ -16,15 +16,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
-import 'package:webview_flutter_wkwebview/src/common/instance_manager.dart';
+import 'package:webview_flutter_wkwebview/src/common/platform_webview.dart';
 import 'package:webview_flutter_wkwebview/src/common/weak_reference_utils.dart';
-import 'package:webview_flutter_wkwebview/src/web_kit/web_kit.dart';
+import 'package:webview_flutter_wkwebview/src/common/web_kit.g.dart';
+import 'package:webview_flutter_wkwebview/src/webkit_proxy.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 Future<void> main() async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  final HttpServer server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+  final HttpServer server =
+      await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   unawaited(server.forEach((HttpRequest request) {
     if (request.uri.path == '/hello.txt') {
       request.response.writeln('Hello, world.');
@@ -58,7 +60,7 @@ Future<void> main() async {
       'withWeakReferenceTo allows encapsulating class to be garbage collected',
       (WidgetTester tester) async {
     final Completer<int> gcCompleter = Completer<int>();
-    final InstanceManager instanceManager = InstanceManager(
+    final PigeonInstanceManager instanceManager = PigeonInstanceManager(
       onWeakReferenceRemoved: gcCompleter.complete,
     );
 
@@ -82,48 +84,58 @@ Future<void> main() async {
   testWidgets(
     'WKWebView is released by garbage collection',
     (WidgetTester tester) async {
-      bool aWebViewHasBeenGarbageCollected = false;
+      final Completer<void> webViewGCCompleter = Completer<void>();
 
-      late final InstanceManager instanceManager;
-      instanceManager =
-          InstanceManager(onWeakReferenceRemoved: (int identifier) {
-        if (!aWebViewHasBeenGarbageCollected) {
-          final Copyable instance =
-              instanceManager.getInstanceWithWeakReference(identifier)!;
-          if (instance is WKWebView) {
-            aWebViewHasBeenGarbageCollected = true;
-          }
+      const int webViewToken = -1;
+      final Finalizer<int> finalizer = Finalizer<int>((int token) {
+        if (token == webViewToken) {
+          webViewGCCompleter.complete();
         }
       });
 
       // Wait for any WebView to be garbage collected.
-      while (!aWebViewHasBeenGarbageCollected) {
-        await tester.pumpWidget(
-          Builder(
-            builder: (BuildContext context) {
-              return PlatformWebViewWidget(
-                WebKitWebViewWidgetCreationParams(
-                  instanceManager: instanceManager,
-                  controller: PlatformWebViewController(
-                    WebKitWebViewControllerCreationParams(
-                      instanceManager: instanceManager,
-                    ),
+      await tester.pumpWidget(
+        Builder(
+          builder: (BuildContext context) {
+            return PlatformWebViewWidget(
+              WebKitWebViewWidgetCreationParams(
+                controller: PlatformWebViewController(
+                  WebKitWebViewControllerCreationParams(
+                    webKitProxy: WebKitProxy(newPlatformWebView: ({
+                      required WKWebViewConfiguration initialConfiguration,
+                      void Function(
+                        NSObject,
+                        String?,
+                        NSObject?,
+                        Map<KeyValueChangeKey, Object?>?,
+                      )? observeValue,
+                    }) {
+                      final PlatformWebView platformWebView = PlatformWebView(
+                        initialConfiguration: initialConfiguration,
+                      );
+                      finalizer.attach(
+                        platformWebView.nativeWebView,
+                        webViewToken,
+                      );
+                      return platformWebView;
+                    }),
                   ),
                 ),
-              ).build(context);
-            },
-          ),
-        );
+              ),
+            ).build(context);
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(Container());
+
+      // Force garbage collection.
+      await IntegrationTestWidgetsFlutterBinding.instance
+          .watchPerformance(() async {
         await tester.pumpAndSettle();
+      });
 
-        await tester.pumpWidget(Container());
-
-        // Force garbage collection.
-        await IntegrationTestWidgetsFlutterBinding.instance
-            .watchPerformance(() async {
-          await tester.pumpAndSettle();
-        });
-      }
+      await expectLater(webViewGCCompleter.future, completes);
     },
     timeout: const Timeout(Duration(seconds: 30)),
   );
@@ -829,7 +841,7 @@ Future<void> main() async {
       unawaited(delegate.setOnPageFinished((_) => pageLoaded.complete()));
       unawaited(
         delegate.setOnNavigationRequest((NavigationRequest navigationRequest) {
-          return (navigationRequest.url.contains('youtube.com'))
+          return navigationRequest.url.contains('youtube.com')
               ? NavigationDecision.prevent
               : NavigationDecision.navigate;
         }),
@@ -1086,7 +1098,7 @@ Future<void> main() async {
       unawaited(delegate.setOnPageFinished((_) => pageLoaded.complete()));
       unawaited(delegate
           .setOnNavigationRequest((NavigationRequest navigationRequest) {
-        return (navigationRequest.url.contains('youtube.com'))
+        return navigationRequest.url.contains('youtube.com')
             ? NavigationDecision.prevent
             : NavigationDecision.navigate;
       }));
@@ -1683,13 +1695,14 @@ class ResizableWebViewState extends State<ResizableWebView> {
   }
 }
 
-class CopyableObjectWithCallback with Copyable {
+class CopyableObjectWithCallback extends PigeonInternalProxyApiBaseClass {
   CopyableObjectWithCallback(this.callback);
 
   final VoidCallback callback;
 
   @override
-  CopyableObjectWithCallback copy() {
+  // ignore: non_constant_identifier_names
+  CopyableObjectWithCallback pigeon_copy() {
     return CopyableObjectWithCallback(callback);
   }
 }

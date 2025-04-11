@@ -1,3 +1,41 @@
+## 2.4.6
+
+* Ensures that platform messages on background queues are handled in order.
+
+## 2.4.5
+
+* Bumps gradle-plugin to 2.1.10.
+
+## 2.4.4
+
+* Restores the behavior of throwing a `TypeError` when calling `getStringList`
+  on a value stored with `setString`.
+
+## 2.4.3
+
+* Migrates `List<String>` value encoding to JSON.
+
+## 2.4.2
+
+* Bumps gradle-plugin to 2.1.0.
+
+## 2.4.1
+
+* Bumps kotlin version to 1.9.10 androidx.datastore:datastore from 1.0.0 to 1.1.1.
+
+## 2.4.0
+
+* Adds `SharedPreferences` support within `SharedPreferencesAsyncAndroid` API.
+
+## 2.3.4
+
+* Restrict types when decoding preferences.
+
+## 2.3.3
+
+* Updates Java compatibility version to 11.
+* Updates minimum supported SDK version to Flutter 3.24/Dart 3.5.
+
 ## 2.3.2
 
 * Bumps `com.android.tools.build:gradle` from 7.2.2 to 8.5.1.
