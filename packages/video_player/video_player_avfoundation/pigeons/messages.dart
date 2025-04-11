@@ -45,7 +45,8 @@ class CreationOptions {
   String? formatHint;
   String? name;
   String? audioTrackName;
-  Map<String?, String?> httpHeaders;
+  Map<String, String> httpHeaders;
+  PlatformVideoViewType viewType;
 }
 
 class AudioTrackMessage {
@@ -61,7 +62,6 @@ class HlsStreamMessage {
   String? name;
   String? audioTrackName;
   Map<String, String> httpHeaders;
-  PlatformVideoViewType viewType;
 }
 
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')

@@ -52,62 +52,23 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<int?> createWithOptions(VideoCreationOptions options) async {
-    final DataSource dataSource = options.dataSource;
-    // Platform views are not supported on macOS yet. Use texture view instead.
-    final VideoViewType viewType = defaultTargetPlatform == TargetPlatform.macOS
-        ? VideoViewType.textureView
-        : options.viewType;
-
-    String? asset;
-    String? packageName;
-    String? uri;
-    String? formatHint;
-    String? name;
-    String? audioTrackName;
-    Map<String, String> httpHeaders = <String, String>{};
-    switch (dataSource.sourceType) {
-      case DataSourceType.asset:
-        asset = dataSource.asset;
-        packageName = dataSource.package;
-      case DataSourceType.network:
-        uri = dataSource.uri;
-        formatHint = _videoFormatStringMap[dataSource.formatHint];
-        httpHeaders = dataSource.httpHeaders;
-        name = dataSource.name;
-        audioTrackName = dataSource.audioTrackName;
-      case DataSourceType.file:
-        uri = dataSource.uri;
-      case DataSourceType.contentUri:
-        uri = dataSource.uri;
-    }
-    final CreationOptions pigeonCreationOptions = CreationOptions(
-      asset: asset,
-      packageName: packageName,
-      uri: uri,
-      httpHeaders: httpHeaders,
-      formatHint: formatHint,
-      viewType: _platformVideoViewTypeFromVideoViewType(viewType),
-      name: name,
-      audioTrackName: audioTrackName,
-    );
-  }
+    final CreationOptions pigeonCreationOptions = _obtainCreateMessageFromDataSource(options);
 
     final int playerId = await _api.create(pigeonCreationOptions);
-    playerViewStates[playerId] = switch (viewType) {
-      // playerId is also the textureId when using texture view.
-      VideoViewType.textureView =>
-        VideoPlayerTextureViewState(textureId: playerId),
-      VideoViewType.platformView => const VideoPlayerPlatformViewState(),
-    };
+    _putPlayerViewState(playerId, options.viewType);
 
     return playerId;
   }
 
-@override
-Future<int?> createWithHlsCachingSupport(DataSource dataSource) async {
-  final CreationOptions options = _obtainCreateMessageFromDataSource(dataSource);
-  return _api.createWithHlsCachingSupport(options);
-}
+  @override
+  Future<int?> createWithHlsCachingSupport(VideoCreationOptions options) async {
+    final CreationOptions pigeonCreationOptions = _obtainCreateMessageFromDataSource(options);
+
+    final int playerId = await _api.createWithHlsCachingSupport(pigeonCreationOptions);
+    _putPlayerViewState(playerId, options.viewType);
+
+    return playerId;
+  }
 
   @override
   Future<void> setLooping(int playerId, bool looping) {
@@ -120,7 +81,7 @@ Future<int?> createWithHlsCachingSupport(DataSource dataSource) async {
       uri: urlString,
       name: streamName,
       audioTrackName: audioTrackName,
-      httpHeaders: <String?, String?>{},
+      httpHeaders: <String, String>{},
     );
     return _api.startHlsStreamCachingIfNeeded(message);
   }
@@ -130,7 +91,7 @@ Future<int?> createWithHlsCachingSupport(DataSource dataSource) async {
     final HlsStreamMessage message = HlsStreamMessage(
       uri: urlString,
       audioTrackName: audioTrackName,
-      httpHeaders: <String?, String?>{},
+      httpHeaders: <String, String>{},
     );
     return _api
         .isHlsAvailableOffline(message)
@@ -254,6 +215,56 @@ Future<int?> createWithHlsCachingSupport(DataSource dataSource) async {
       null => throw Exception(
           'Could not find corresponding view type for playerId: $playerId',
         ),
+    };
+  }
+
+  CreationOptions _obtainCreateMessageFromDataSource(VideoCreationOptions options) {
+    final DataSource dataSource = options.dataSource;
+    // Platform views are not supported on macOS yet. Use texture view instead.
+    final VideoViewType viewType = defaultTargetPlatform == TargetPlatform.macOS
+        ? VideoViewType.textureView
+        : options.viewType;
+
+    String? asset;
+    String? packageName;
+    String? uri;
+    String? formatHint;
+    String? name;
+    String? audioTrackName;
+    Map<String, String> httpHeaders = <String, String>{};
+    switch (dataSource.sourceType) {
+      case DataSourceType.asset:
+        asset = dataSource.asset;
+        packageName = dataSource.package;
+      case DataSourceType.network:
+        uri = dataSource.uri;
+        formatHint = _videoFormatStringMap[dataSource.formatHint];
+        httpHeaders = dataSource.httpHeaders;
+        name = dataSource.name;
+        audioTrackName = dataSource.audioTrackName;
+      case DataSourceType.file:
+        uri = dataSource.uri;
+      case DataSourceType.contentUri:
+        uri = dataSource.uri;
+    }
+    return CreationOptions(
+      asset: asset,
+      packageName: packageName,
+      uri: uri,
+      httpHeaders: httpHeaders,
+      formatHint: formatHint,
+      viewType: _platformVideoViewTypeFromVideoViewType(viewType),
+      name: name,
+      audioTrackName: audioTrackName,
+    );
+  }
+
+  void _putPlayerViewState(int playerId, VideoViewType viewType) {
+    playerViewStates[playerId] = switch (viewType) {
+    // playerId is also the textureId when using texture view.
+      VideoViewType.textureView =>
+          VideoPlayerTextureViewState(textureId: playerId),
+      VideoViewType.platformView => const VideoPlayerPlatformViewState(),
     };
   }
 
