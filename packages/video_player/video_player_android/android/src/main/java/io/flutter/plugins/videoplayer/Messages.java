@@ -346,17 +346,17 @@ public class Messages {
 
   /** Generated class from Pigeon that represents data sent in messages. */
   public static final class AudioTrackMessage {
-    private @NonNull Long textureId;
+    private @NonNull Long playerId;
 
-    public @NonNull Long getTextureId() {
-      return textureId;
+    public @NonNull Long getPlayerId() {
+      return playerId;
     }
 
-    public void setTextureId(@NonNull Long setterArg) {
+    public void setPlayerId(@NonNull Long setterArg) {
       if (setterArg == null) {
-        throw new IllegalStateException("Nonnull field \"textureId\" is null.");
+        throw new IllegalStateException("Nonnull field \"playerId\" is null.");
       }
-      this.textureId = setterArg;
+      this.playerId = setterArg;
     }
 
     private @Nullable List<String> audioTrackNames;
@@ -387,21 +387,21 @@ public class Messages {
       if (this == o) { return true; }
       if (o == null || getClass() != o.getClass()) { return false; }
       AudioTrackMessage that = (AudioTrackMessage) o;
-      return textureId.equals(that.textureId) && Objects.equals(audioTrackNames, that.audioTrackNames) && Objects.equals(index, that.index);
+      return playerId.equals(that.playerId) && Objects.equals(audioTrackNames, that.audioTrackNames) && Objects.equals(index, that.index);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(textureId, audioTrackNames, index);
+      return Objects.hash(playerId, audioTrackNames, index);
     }
 
     public static final class Builder {
 
-      private @Nullable Long textureId;
+      private @Nullable Long playerId;
 
       @CanIgnoreReturnValue
-      public @NonNull Builder setTextureId(@NonNull Long setterArg) {
-        this.textureId = setterArg;
+      public @NonNull Builder setPlayerId(@NonNull Long setterArg) {
+        this.playerId = setterArg;
         return this;
       }
 
@@ -423,7 +423,7 @@ public class Messages {
 
       public @NonNull AudioTrackMessage build() {
         AudioTrackMessage pigeonReturn = new AudioTrackMessage();
-        pigeonReturn.setTextureId(textureId);
+        pigeonReturn.setPlayerId(playerId);
         pigeonReturn.setAudioTrackNames(audioTrackNames);
         pigeonReturn.setIndex(index);
         return pigeonReturn;
@@ -433,7 +433,7 @@ public class Messages {
     @NonNull
     ArrayList<Object> toList() {
       ArrayList<Object> toListResult = new ArrayList<>(3);
-      toListResult.add(textureId);
+      toListResult.add(playerId);
       toListResult.add(audioTrackNames);
       toListResult.add(index);
       return toListResult;
@@ -441,8 +441,8 @@ public class Messages {
 
     static @NonNull AudioTrackMessage fromList(@NonNull ArrayList<Object> pigeonVar_list) {
       AudioTrackMessage pigeonResult = new AudioTrackMessage();
-      Object textureId = pigeonVar_list.get(0);
-      pigeonResult.setTextureId((Long) textureId);
+      Object playerId = pigeonVar_list.get(0);
+      pigeonResult.setPlayerId((Long) playerId);
       Object audioTrackNames = pigeonVar_list.get(1);
       pigeonResult.setAudioTrackNames((List<String>) audioTrackNames);
       Object index = pigeonVar_list.get(2);
@@ -511,7 +511,7 @@ public class Messages {
     void setPlaybackSpeed(@NonNull Long playerId, @NonNull Double speed);
 
     @NonNull 
-    AudioTrackMessage getAvailableAudioTracksList(@NonNull Long textureId);
+    AudioTrackMessage getAvailableAudioTracksList(@NonNull Long playerId);
 
     void setActiveAudioTrack(@NonNull AudioTrackMessage msg);
 
@@ -686,9 +686,9 @@ public class Messages {
               (message, reply) -> {
                 ArrayList<Object> wrapped = new ArrayList<>();
                 ArrayList<Object> args = (ArrayList<Object>) message;
-                Long textureIdArg = (Long) args.get(0);
+                Long playerIdArg = (Long) args.get(0);
                 try {
-                  AudioTrackMessage output = api.getAvailableAudioTracksList(textureIdArg);
+                  AudioTrackMessage output = api.getAvailableAudioTracksList(playerIdArg);
                   wrapped.add(0, output);
                 }
  catch (Throwable exception) {

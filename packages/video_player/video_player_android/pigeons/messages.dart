@@ -41,8 +41,8 @@ class CreateMessage {
 }
 
 class AudioTrackMessage {
-  AudioTrackMessage(this.textureId, this.audioTrackNames, this.index);
-  int textureId;
+  AudioTrackMessage(this.playerId, this.audioTrackNames, this.index);
+  int playerId;
   List<String?>? audioTrackNames;
   int? index;
 }
@@ -55,7 +55,7 @@ abstract class AndroidVideoPlayerApi {
   void setLooping(int playerId, bool looping);
   void setVolume(int playerId, double volume);
   void setPlaybackSpeed(int playerId, double speed);
-  AudioTrackMessage getAvailableAudioTracksList(int textureId);
+  AudioTrackMessage getAvailableAudioTracksList(int playerId);
   void setActiveAudioTrack(AudioTrackMessage msg);
   void setActiveAudioTrackByIndex(AudioTrackMessage msg);
   void play(int playerId);

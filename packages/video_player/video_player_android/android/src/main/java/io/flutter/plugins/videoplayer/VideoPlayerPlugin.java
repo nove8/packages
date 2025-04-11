@@ -190,21 +190,21 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
   }
 
   @NonNull
-  public AudioTrackMessage getAvailableAudioTracksList(@NonNull Long textureId) {
-    VideoPlayer player = getPlayer(textureId);
+  public AudioTrackMessage getAvailableAudioTracksList(@NonNull Long playerId) {
+    VideoPlayer player = getPlayer(playerId);
     AudioTrackMessage.Builder builder = new AudioTrackMessage.Builder();
     builder.setAudioTrackNames(player.getAvailableAudioTracksList());
-    builder.setTextureId(textureId);
+    builder.setPlayerId(playerId);
     return builder.build();
   }
 
   public void setActiveAudioTrack(@NonNull AudioTrackMessage arg) {
-    VideoPlayer player = getPlayer(arg.getTextureId());
+    VideoPlayer player = getPlayer(arg.getPlayerId());
     player.setActiveAudioTrack(arg.getAudioTrackNames().get(0).toString());
   }
 
   public void setActiveAudioTrackByIndex(@NonNull AudioTrackMessage arg) {
-    VideoPlayer player = getPlayer(arg.getTextureId());
+    VideoPlayer player = getPlayer(arg.getPlayerId());
     player.setActiveAudioTrackByIndex(arg.getIndex().intValue());
   }
 
