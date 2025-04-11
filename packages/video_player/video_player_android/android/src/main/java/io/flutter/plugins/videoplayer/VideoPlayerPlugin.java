@@ -159,7 +159,8 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     player.setVolume(arg.getVolume());
   }
 
-  public AudioTrackMessage getAvailableAudioTracksList(TextureMessage arg) {
+  @NonNull
+  public AudioTrackMessage getAvailableAudioTracksList(@NonNull TextureMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
     AudioTrackMessage.Builder builder = new AudioTrackMessage.Builder();
     builder.setAudioTrackNames(player.getAvailableAudioTracksList());
@@ -167,12 +168,12 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     return builder.build();
   }
 
-  public void setActiveAudioTrack(AudioTrackMessage arg) {
+  public void setActiveAudioTrack(@NonNull AudioTrackMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
     player.setActiveAudioTrack(arg.getAudioTrackNames().get(0).toString());
   }
 
-  public void setActiveAudioTrackByIndex(AudioTrackMessage arg) {
+  public void setActiveAudioTrackByIndex(@NonNull AudioTrackMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
     player.setActiveAudioTrackByIndex(arg.getIndex().intValue());
   }
