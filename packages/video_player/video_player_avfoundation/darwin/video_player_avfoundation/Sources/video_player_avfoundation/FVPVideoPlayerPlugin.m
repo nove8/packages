@@ -210,8 +210,8 @@ static void upgradeAudioSessionCategory(AVAudioSessionCategory requestedCategory
     NSString *assetPath = [self assetPathFromCreationOptions:options];
     return [[FVPTextureBasedVideoPlayer alloc] initWithAsset:assetPath
                                                 frameUpdater:frameUpdater
-                                              audioTrackName:options.audioTrackName
                                        displayLink:displayLink
+                                    audioTrackName:options.audioTrackName
                                            avFactory:_avFactory
                                            registrar:self.registrar
                                                   onDisposed:onDisposed];
@@ -219,8 +219,8 @@ static void upgradeAudioSessionCategory(AVAudioSessionCategory requestedCategory
     return [[FVPTextureBasedVideoPlayer alloc] initWithURL:[NSURL URLWithString:options.uri]
                                               frameUpdater:frameUpdater
                                                displayLink:displayLink
+                                            audioTrackName:options.audioTrackName
                                                httpHeaders:options.httpHeaders
-                                           audioTrackName:options.audioTrackName
                                     avFactory:_avFactory
                                           registrar:self.registrar
                                                 onDisposed:onDisposed];
@@ -270,47 +270,41 @@ static void upgradeAudioSessionCategory(AVAudioSessionCategory requestedCategory
                                                      [frameUpdater displayLinkFired];
                                                    }];
 
-    FVPVideoPlayer *player;
+        AVURLAsset* remoteUrlAsset = [self createAVURLAssetWithHttpHeaders:options.httpHeaders remoteUrl:remoteUrl];
+        Asset* localAsset;
 
-    AVURLAsset* remoteUrlAsset = [self createAVURLAssetWithHttpHeaders:options.httpHeaders remoteUrl:remoteUrl];
-    Asset* localAsset;
+        Asset* asset = [[Asset alloc] initWithURLAsset:remoteUrlAsset];
 
-    Asset* asset = [[Asset alloc] initWithURLAsset:remoteUrlAsset];
-
-    if (AssetPersistenceManager.sharedManager.didRestorePersistenceManager) {
-      AssetDownloadState assetDownloadState = [AssetPersistenceManager.sharedManager downloadState:asset audioTrackName:options.audioTrackName];
-      switch(assetDownloadState) {
-        case AssetDownloaded: {
-          NSLog(@"HLS asset is in cache");
-          // Can delete
-          //[AssetPersistenceManager.sharedManager deleteAsset:asset];
-          localAsset = [AssetPersistenceManager.sharedManager localAssetForStream:asset.uniqueId];
-          break;
+        if (AssetPersistenceManager.sharedManager.didRestorePersistenceManager) {
+            AssetDownloadState assetDownloadState = [AssetPersistenceManager.sharedManager downloadState:asset audioTrackName:options.audioTrackName];
+            switch(assetDownloadState) {
+                case AssetDownloaded: {
+                    NSLog(@"HLS asset is in cache");
+                    // Can delete
+                    //[AssetPersistenceManager.sharedManager deleteAsset:asset];
+                    localAsset = [AssetPersistenceManager.sharedManager localAssetForStream:asset.uniqueId];
+                    break;
+                }
+                case AssetDownloading: {
+                    NSLog(@"HLS asset is downloading");
+                    // Can cancel
+                    //[AssetPersistenceManager.sharedManager cancelDownload:asset];
+                    localAsset = [AssetPersistenceManager.sharedManager assetForStream:asset.uniqueId];
+                    break;
+                }
+                case AssetNotDownloaded: {
+                    NSLog(@"HLS asset is not cached, starting download");
+                    [AssetPersistenceManager.sharedManager downloadStream:asset streamName:options.name audioTrackName:options.audioTrackName];
+                    localAsset = asset;
+                    break;
+                }
+            }
+        } else {
+            NSLog(@"Asset manager not initialized (did you forget to restore state in AppDelegate?)");
+            localAsset = asset;
         }
-        case AssetDownloading: {
-          NSLog(@"HLS asset is downloading");
-          // Can cancel
-          //[AssetPersistenceManager.sharedManager cancelDownload:asset];
-          localAsset = [AssetPersistenceManager.sharedManager assetForStream:asset.uniqueId];
-          break;
-        }
-        case AssetNotDownloaded: {
-          NSLog(@"HLS asset is not cached, starting download");
-          [AssetPersistenceManager.sharedManager downloadStream:asset streamName:options.name audioTrackName:options.audioTrackName];
-          localAsset = asset;
-          break;
-        }
-      }
-    } else {
-      NSLog(@"Asset manager not initialized (did you forget to restore state in AppDelegate?)");
-      localAsset = asset;
     }
-
-    player = [self texturePlayerWithOptions:options];
-    return @([self onPlayerSetup:player]);
-  } else {
     return [self createWithOptions:options error:error];
-  }
 }
 
 - (void)disposePlayer:(NSInteger)playerIdentifier error:(FlutterError **)error {

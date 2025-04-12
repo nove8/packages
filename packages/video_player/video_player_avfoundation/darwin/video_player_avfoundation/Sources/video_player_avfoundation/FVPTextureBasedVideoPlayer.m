@@ -22,16 +22,16 @@
 @implementation FVPTextureBasedVideoPlayer
 - (instancetype)initWithAsset:(NSString *)asset
                  frameUpdater:(FVPFrameUpdater *)frameUpdater
-                audioTrackName:(nullable NSString *)audioTrackName
                   displayLink:(FVPDisplayLink *)displayLink
+               audioTrackName:(nullable NSString *)audioTrackName
                     avFactory:(id<FVPAVFactory>)avFactory
                     registrar:(NSObject<FlutterPluginRegistrar> *)registrar
                    onDisposed:(void (^)(int64_t))onDisposed {
   return [self initWithURL:[NSURL fileURLWithPath:[FVPVideoPlayer absolutePathForAssetName:asset]]
               frameUpdater:frameUpdater
                displayLink:displayLink
+          audioTrackName:audioTrackName
                httpHeaders:@{}
-             audioTrackName:audioTrackName
                  avFactory:avFactory
                  registrar:registrar
                 onDisposed:onDisposed];
@@ -40,8 +40,8 @@
 - (instancetype)initWithURL:(NSURL *)url
                frameUpdater:(FVPFrameUpdater *)frameUpdater
                 displayLink:(FVPDisplayLink *)displayLink
+             audioTrackName:(nullable NSString *)audioTrackName
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
-                audioTrackName:(nullable NSString *)audioTrackName
                   avFactory:(id<FVPAVFactory>)avFactory
                   registrar:(NSObject<FlutterPluginRegistrar> *)registrar
                  onDisposed:(void (^)(int64_t))onDisposed {
@@ -54,6 +54,7 @@
   return [self initWithPlayerItem:item
                      frameUpdater:frameUpdater
                       displayLink:displayLink
+                   audioTrackName:audioTrackName
                         avFactory:avFactory
                         registrar:registrar
                        onDisposed:onDisposed];
@@ -62,6 +63,7 @@
 - (instancetype)initWithPlayerItem:(AVPlayerItem *)item
                       frameUpdater:(FVPFrameUpdater *)frameUpdater
                        displayLink:(FVPDisplayLink *)displayLink
+                    audioTrackName:(nullable NSString *)audioTrackName
                          avFactory:(id<FVPAVFactory>)avFactory
                          registrar:(NSObject<FlutterPluginRegistrar> *)registrar
                         onDisposed:(void (^)(int64_t))onDisposed {
@@ -73,6 +75,8 @@
     _frameUpdater.videoOutput = self.videoOutput;
     _onDisposed = [onDisposed copy];
 
+    [self setInitialAudioTrack:item audioTrackName:audioTrackName];
+
     // This is to fix 2 bugs: 1. blank video for encrypted video streams on iOS 16
     // (https://github.com/flutter/flutter/issues/111457) and 2. swapped width and height for some
     // video streams (not just iOS 16).  (https://github.com/flutter/flutter/issues/109116). An
@@ -82,6 +86,28 @@
     [self.flutterViewLayer addSublayer:self.playerLayer];
   }
   return self;
+}
+
+- (void)setInitialAudioTrack:(AVPlayerItem *)item audioTrackName:(NSString *)audioTrackName {
+    AVMediaSelectionGroup *audioSelectionGroup = [[item asset] mediaSelectionGroupForMediaCharacteristic: AVMediaCharacteristicAudible];
+    if(audioSelectionGroup != nil) {
+        NSArray* audioSelectionGroupOptions = audioSelectionGroup.options;
+        // Select the first audio track as a default fallback option
+        [item selectMediaOption:audioSelectionGroupOptions[0] inMediaSelectionGroup: audioSelectionGroup];
+        if(audioTrackName != nil) {
+            for(AVMediaSelectionOption* audioTrack in audioSelectionGroupOptions) {
+                NSString* localAudioTrackName = audioTrack.locale.languageCode;
+                if(audioTrack.locale.languageCode == nil) {
+                    localAudioTrackName = @"und"; // as defined in ISO 639-2
+                }
+
+                if([audioTrackName isEqualToString:localAudioTrackName]) {
+                    [item selectMediaOption:audioTrack inMediaSelectionGroup: audioSelectionGroup];
+                    break;
+                }
+            }
+        }
+    }
 }
 
 - (void)setTextureIdentifier:(int64_t)textureIdentifier {
