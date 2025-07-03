@@ -10,6 +10,24 @@ import 'package:vector_graphics_compiler/vector_graphics_compiler.dart';
 
 import 'test_svg_strings.dart';
 
+class _TestOpacityColorMapper implements ColorMapper {
+  const _TestOpacityColorMapper();
+
+  @override
+  Color substitute(
+    String? id,
+    String elementName,
+    String attributeName,
+    Color color,
+  ) {
+    if (color.value == 0xff000000) {
+      return const Color(0x7fff0000);
+    } else {
+      return color;
+    }
+  }
+}
+
 void main() {
   test('Reuse ID self-referentially', () {
     final VectorInstructions instructions = parseWithoutOptimizers('''
@@ -266,6 +284,24 @@ void main() {
     );
   });
 
+  test('preserve opacity from color mapper for strokes', () {
+    const String strokeOpacitySvg = '''
+<svg viewBox="0 0 10 10" fill="none">
+  <rect x="0" y="0" width="5" height="5" stroke="#000000" />
+</svg>
+''';
+
+    final VectorInstructions instructions = parseWithoutOptimizers(
+      strokeOpacitySvg,
+      colorMapper: const _TestOpacityColorMapper(),
+    );
+
+    expect(
+      instructions.paints.single,
+      const Paint(stroke: Stroke(color: Color(0x7fff0000))),
+    );
+  });
+
   test('text attributes are preserved', () {
     final VectorInstructions instructions = parseWithoutOptimizers(textTspan);
     expect(
@@ -349,6 +385,39 @@ void main() {
     expect(
       redInstructions.paints.single,
       const Paint(fill: Fill(color: Color(0xFFFF0000))),
+    );
+  });
+
+  test('currentColor stoke opacity', () {
+    const String currentColorSvg = '''
+<svg viewBox="0 0 10 10">
+  <rect x="0" y="0" width="5" height="5" fill="currentColor" stroke="currentColor" />
+</svg>
+''';
+
+    final VectorInstructions blueInstructions = parseWithoutOptimizers(
+      currentColorSvg,
+      theme: const SvgTheme(currentColor: Color(0x7F0000FF)),
+    );
+    final VectorInstructions redInstructions = parseWithoutOptimizers(
+      currentColorSvg,
+      theme: const SvgTheme(currentColor: Color(0x7FFF0000)),
+    );
+
+    expect(
+      blueInstructions.paints.single,
+      const Paint(
+        fill: Fill(color: Color(0x7F0000FF)),
+        stroke: Stroke(color: Color(0x7F0000FF)),
+      ),
+    );
+
+    expect(
+      redInstructions.paints.single,
+      const Paint(
+        fill: Fill(color: Color(0x7FFF0000)),
+        stroke: Stroke(color: Color(0x7FFF0000)),
+      ),
     );
   });
 
@@ -701,6 +770,87 @@ void main() {
           CloseCommand(),
         ],
       ),
+    ]);
+  });
+
+  test('stroke-width with invalid value', () {
+    const String svg =
+        '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M100 10 H180 V90 H100 Z" fill="#ff0000" stroke="#0000ff" stroke-width="invalid"/></svg>';
+
+    final VectorInstructions instructions = parseWithoutOptimizers(svg);
+
+    expect(instructions.paints, const <Paint>[
+      Paint(
+          stroke: Stroke(color: Color(0xff0000ff)),
+          fill: Fill(color: Color(0xffff0000))),
+    ]);
+
+    expect(instructions.paths, <Path>[
+      Path(
+        commands: const <PathCommand>[
+          MoveToCommand(100.0, 10.0),
+          LineToCommand(180.0, 10.0),
+          LineToCommand(180.0, 90.0),
+          LineToCommand(100.0, 90.0),
+          CloseCommand(),
+        ],
+      ),
+    ]);
+  });
+
+  test('stroke-width with unit value', () {
+    const SvgTheme theme = SvgTheme();
+    const double ptConversionFactor = 96 / 72;
+
+    const String svg_px =
+        '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M100 10 H180 V90 H100 Z" fill="#ff0000" stroke="#0000ff" stroke-width="1px"/></svg>';
+    const String svg_pt =
+        '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M100 10 H180 V90 H100 Z" fill="#ff0000" stroke="#0000ff" stroke-width="1pt"/></svg>';
+    const String svg_ex =
+        '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M100 10 H180 V90 H100 Z" fill="#ff0000" stroke="#0000ff" stroke-width="1ex"/></svg>';
+    const String svg_em =
+        '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M100 10 H180 V90 H100 Z" fill="#ff0000" stroke="#0000ff" stroke-width="1em"/></svg>';
+    const String svg_rem =
+        '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M100 10 H180 V90 H100 Z" fill="#ff0000" stroke="#0000ff" stroke-width="1rem"/></svg>';
+
+    final VectorInstructions instructionsPx = parseWithoutOptimizers(svg_px);
+    final VectorInstructions instructionsPt = parseWithoutOptimizers(svg_pt);
+    final VectorInstructions instructionsEx = parseWithoutOptimizers(svg_ex);
+    final VectorInstructions instructionsEm = parseWithoutOptimizers(svg_em);
+    final VectorInstructions instructionsRem = parseWithoutOptimizers(svg_rem);
+
+    expect(instructionsPx.paints, <Paint>[
+      const Paint(
+          stroke: Stroke(color: Color(0xff0000ff), width: 1.0),
+          fill: Fill(color: Color(0xffff0000))),
+    ]);
+
+    expect(instructionsPt.paints, <Paint>[
+      const Paint(
+          stroke:
+              Stroke(color: Color(0xff0000ff), width: 1 * ptConversionFactor),
+          fill: Fill(color: Color(0xffff0000))),
+    ]);
+
+    expect(instructionsEx.paints, <Paint>[
+      Paint(
+          stroke: Stroke(
+              color: const Color(0xff0000ff), width: 1.0 * theme.xHeight),
+          fill: const Fill(color: Color(0xffff0000))),
+    ]);
+
+    expect(instructionsEm.paints, <Paint>[
+      Paint(
+          stroke: Stroke(
+              color: const Color(0xff0000ff), width: 1.0 * theme.fontSize),
+          fill: const Fill(color: Color(0xffff0000))),
+    ]);
+
+    expect(instructionsRem.paints, <Paint>[
+      Paint(
+          stroke: Stroke(
+              color: const Color(0xff0000ff), width: 1.0 * theme.fontSize),
+          fill: const Fill(color: Color(0xffff0000))),
     ]);
   });
 

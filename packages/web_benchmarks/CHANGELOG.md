@@ -1,3 +1,12 @@
+## NEXT
+
+* Updates minimum supported SDK version to Flutter 3.27/Dart 3.6.
+
+## 4.0.0
+
+* **Breaking change:** Removes `CompilationOptions.renderer` and the
+  `WebRenderer` enum.
+
 ## 3.1.1
 
 * Adds `missing_code_block_language_in_doc_comment` lint.

@@ -22,11 +22,13 @@ class SK2Transaction {
       required this.originalId,
       required this.productId,
       required this.purchaseDate,
+      this.expirationDate,
       this.quantity = 1,
       required this.appAccountToken,
       this.subscriptionGroupID,
       this.price,
-      this.error});
+      this.error,
+      this.jsonRepresentation});
 
   /// The unique identifier for the transaction.
   final String id;
@@ -43,6 +45,9 @@ class SK2Transaction {
   /// restored product, or for a subscription purchase or renewal after a lapse.
   final String purchaseDate;
 
+  /// The date the subscription expires or renews.
+  final String? expirationDate;
+
   /// The number of consumable products purchased.
   final int quantity;
 
@@ -57,6 +62,9 @@ class SK2Transaction {
 
   /// Any error returned from StoreKit
   final SKError? error;
+
+  /// The json representation of a transaction
+  final String? jsonRepresentation;
 
   /// Wrapper around [Transaction.finish]
   /// https://developer.apple.com/documentation/storekit/transaction/3749694-finish
@@ -100,7 +108,9 @@ extension on SK2TransactionMessage {
         originalId: originalId.toString(),
         productId: productId,
         purchaseDate: purchaseDate,
-        appAccountToken: appAccountToken);
+        expirationDate: expirationDate,
+        appAccountToken: appAccountToken,
+        jsonRepresentation: jsonRepresentation);
   }
 
   PurchaseDetails convertToDetails() {

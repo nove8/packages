@@ -1,3 +1,19 @@
+## 0.4.0+7
+
+* Removes obsolete code related to supporting SDK <21.
+
+## 0.4.0+6
+
+* Updates compileSdk 34 to flutter.compileSdkVersion.
+
+## 0.4.0+5
+
+* Bumps com.squareup.okhttp3, com.google.code.gson, and com.google.truth.
+
+## 0.4.0+4
+
+* Updates agp to 8.7.2.
+
 ## 0.4.0+3
 
 * Updates Java compatibility version to 11.

@@ -1587,7 +1587,7 @@ class SvgParser {
       cap: _parseCap(rawStrokeCap, null),
       join: _parseJoin(rawLineJoin, null),
       miterLimit: parseDouble(rawMiterLimit),
-      width: parseDoubleWithUnits(rawStrokeWidth),
+      width: parseDoubleWithUnits(rawStrokeWidth, tryParse: true),
       dashArray: _parseDashArray(rawStrokeDashArray),
       dashOffset: _parseDashOffset(rawStrokeDashOffset),
       hasPattern: hasPattern,
@@ -2306,7 +2306,7 @@ class SvgStrokeAttributes {
     }
 
     return Stroke(
-      color: color.color!.withOpacity(opacity ?? 1.0),
+      color: opacity == null ? color.color : color.color!.withOpacity(opacity!),
       shader: shader,
       join: join,
       cap: cap,

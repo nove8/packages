@@ -4,10 +4,10 @@
 
 import 'package:args/command_runner.dart';
 import 'package:file/file.dart';
-import 'package:file/memory.dart';
 import 'package:flutter_plugin_tools/src/common/core.dart';
 import 'package:flutter_plugin_tools/src/common/file_utils.dart';
 import 'package:flutter_plugin_tools/src/format_command.dart';
+import 'package:git/git.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -15,7 +15,6 @@ import 'mocks.dart';
 import 'util.dart';
 
 void main() {
-  late FileSystem fileSystem;
   late MockPlatform mockPlatform;
   late Directory packagesDir;
   late RecordingProcessRunner processRunner;
@@ -25,14 +24,15 @@ void main() {
   late String kotlinFormatPath;
 
   setUp(() {
-    fileSystem = MemoryFileSystem();
     mockPlatform = MockPlatform();
-    packagesDir = createPackagesDirectory(fileSystem: fileSystem);
-    processRunner = RecordingProcessRunner();
+    final GitDir gitDir;
+    (:packagesDir, :processRunner, gitProcessRunner: _, :gitDir) =
+        configureBaseCommandMocks(platform: mockPlatform);
     analyzeCommand = FormatCommand(
       packagesDir,
       processRunner: processRunner,
       platform: mockPlatform,
+      gitDir: gitDir,
     );
 
     // Create the Java and Kotlin formatter files that the command checks for,
@@ -40,11 +40,11 @@ void main() {
     final p.Context path = analyzeCommand.path;
     javaFormatPath = path.join(path.dirname(path.fromUri(mockPlatform.script)),
         'google-java-format-1.3-all-deps.jar');
-    fileSystem.file(javaFormatPath).createSync(recursive: true);
+    packagesDir.fileSystem.file(javaFormatPath).createSync(recursive: true);
     kotlinFormatPath = path.join(
         path.dirname(path.fromUri(mockPlatform.script)),
         'ktfmt-0.46-jar-with-dependencies.jar');
-    fileSystem.file(kotlinFormatPath).createSync(recursive: true);
+    packagesDir.fileSystem.file(kotlinFormatPath).createSync(recursive: true);
 
     runner = CommandRunner<void>('format_command', 'Test for format_command');
     runner.addCommand(analyzeCommand);
@@ -643,7 +643,7 @@ void main() {
           ]));
     });
 
-    test('fails if swift-format lint fails', () async {
+    test('fails if swift-format lint finds issues', () async {
       const List<String> files = <String>[
         'macos/foo.swift',
       ];
@@ -675,7 +675,43 @@ void main() {
       expect(
           output,
           containsAllInOrder(<Matcher>[
-            contains('Failed to lint Swift files: exit code 1.'),
+            contains('Swift linter found issues. See above for linter output.'),
+          ]));
+    });
+
+    test('fails if swift-format lint fails', () async {
+      const List<String> files = <String>[
+        'macos/foo.swift',
+      ];
+      final RepositoryPackage plugin =
+          createFakePlugin('a_plugin', packagesDir, extraFiles: files);
+      fakePubGet(plugin);
+
+      processRunner.mockProcessesForExecutable['swift-format'] =
+          <FakeProcessInfo>[
+        FakeProcessInfo(MockProcess(),
+            <String>['--version']), // check for working swift-format
+        FakeProcessInfo(MockProcess(), <String>['-i']),
+        FakeProcessInfo(MockProcess(exitCode: 99), <String>[
+          'lint',
+          '--parallel',
+          '--strict',
+        ]),
+      ];
+      Error? commandError;
+      final List<String> output = await runCapturingPrint(runner, <String>[
+        'format',
+        '--swift',
+        '--swift-format-path=swift-format'
+      ], errorHandler: (Error e) {
+        commandError = e;
+      });
+
+      expect(commandError, isA<ToolExit>());
+      expect(
+          output,
+          containsAllInOrder(<Matcher>[
+            contains('Failed to lint Swift files: exit code 99.'),
           ]));
     });
 

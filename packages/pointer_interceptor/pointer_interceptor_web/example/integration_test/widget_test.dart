@@ -63,6 +63,29 @@ void main() {
 
       expect(element.id, 'background-html-view');
     }, semanticsEnabled: false);
+
+    // Regression test for https://github.com/flutter/flutter/issues/157920
+    testWidgets(
+      'prevents default action of mousedown events',
+      (WidgetTester tester) async {
+        await _fullyRenderApp(tester);
+
+        final web.Element element =
+            _getHtmlElementAtCenter(clickableButtonFinder, tester);
+        expect(element.tagName.toLowerCase(), 'div');
+
+        for (int i = 0; i <= 4; i++) {
+          final web.MouseEvent event = web.MouseEvent(
+            'mousedown',
+            web.MouseEventInit(button: i, cancelable: true),
+          );
+          element.dispatchEvent(event);
+          expect(event.target, element);
+          expect(event.defaultPrevented, isTrue);
+        }
+      },
+      semanticsEnabled: false,
+    );
   });
 }
 
@@ -70,7 +93,8 @@ Future<void> _fullyRenderApp(WidgetTester tester) async {
   await tester.pumpWidget(const app.MyApp());
   // Pump 2 frames so the framework injects the platform view into the DOM.
   await tester.pump();
-  await tester.pump();
+  // Give the browser some time to perform DOM operations (for Wasm code)
+  await tester.pump(const Duration(milliseconds: 500));
 }
 
 // Calls [_getHtmlElementAt] passing it the center of the widget identified by

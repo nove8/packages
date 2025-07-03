@@ -1,3 +1,7 @@
+## NEXT
+
+* Updates minimum supported SDK version to Flutter 3.27/Dart 3.6.
+
 ## 3.2.1
 
 * Updates Pigeon to resolve a compilation failure with some versions of glib.

@@ -314,6 +314,32 @@ void main() {
     expect(debugLastTextDirection, TextDirection.ltr);
   });
 
+  testWidgets('Test animated switch between placeholder and image',
+      (WidgetTester tester) async {
+    final TestAssetBundle testBundle = TestAssetBundle();
+    const Text placeholderWidget = Text('Placeholder');
+
+    await tester.pumpWidget(DefaultAssetBundle(
+      bundle: testBundle,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: VectorGraphic(
+          loader: const AssetBytesLoader('bar.svg'),
+          placeholderBuilder: (BuildContext context) => placeholderWidget,
+          transitionDuration: const Duration(microseconds: 500),
+        ),
+      ),
+    ));
+
+    expect(find.text('Placeholder'), findsOneWidget);
+    expect(find.byType(Container), findsNothing); // No image yet
+
+    await tester.pumpAndSettle(const Duration(microseconds: 500));
+
+    expect(find.text('Placeholder'), findsNothing);
+    expect(testBundle.loadKeys, <String>['bar.svg']);
+  });
+
   testWidgets('Can exclude from semantics', (WidgetTester tester) async {
     final TestAssetBundle testBundle = TestAssetBundle();
 
@@ -653,6 +679,28 @@ void main() {
     expect(matrix.row0.x, -1);
     expect(matrix.row1.y, 1);
   });
+
+  testWidgets('VectorGraphicsWidget can handle errors from bytes loader',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      VectorGraphic(
+        loader: const ThrowingBytesLoader(),
+        width: 100,
+        height: 100,
+        errorBuilder:
+            (BuildContext context, Object error, StackTrace stackTrace) {
+          return const Directionality(
+            textDirection: TextDirection.ltr,
+            child: Text('Error is handled'),
+          );
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Error is handled'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class TestBundle extends Fake implements AssetBundle {
@@ -718,4 +766,13 @@ class TestBytesLoader extends BytesLoader {
 
   @override
   String toString() => 'TestBytesLoader: $source';
+}
+
+class ThrowingBytesLoader extends BytesLoader {
+  const ThrowingBytesLoader();
+
+  @override
+  Future<ByteData> loadBytes(BuildContext? context) {
+    throw UnimplementedError('Test exception');
+  }
 }

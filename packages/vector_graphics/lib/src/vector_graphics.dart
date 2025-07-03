@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -60,6 +61,7 @@ VectorGraphic createCompatVectorGraphic({
   String? semanticsLabel,
   bool excludeFromSemantics = false,
   Clip clipBehavior = Clip.hardEdge,
+  Duration? transitionDuration,
   WidgetBuilder? placeholderBuilder,
   VectorGraphicsErrorWidget? errorBuilder,
   ColorFilter? colorFilter,
@@ -78,6 +80,7 @@ VectorGraphic createCompatVectorGraphic({
     semanticsLabel: semanticsLabel,
     excludeFromSemantics: excludeFromSemantics,
     clipBehavior: clipBehavior,
+    transitionDuration: transitionDuration,
     placeholderBuilder: placeholderBuilder,
     errorBuilder: errorBuilder,
     colorFilter: colorFilter,
@@ -117,6 +120,7 @@ class VectorGraphic extends StatefulWidget {
     this.semanticsLabel,
     this.excludeFromSemantics = false,
     this.clipBehavior = Clip.hardEdge,
+    this.transitionDuration,
     this.placeholderBuilder,
     this.errorBuilder,
     this.colorFilter,
@@ -136,6 +140,7 @@ class VectorGraphic extends StatefulWidget {
     this.semanticsLabel,
     this.excludeFromSemantics = false,
     this.clipBehavior = Clip.hardEdge,
+    this.transitionDuration,
     this.placeholderBuilder,
     this.errorBuilder,
     this.colorFilter,
@@ -216,6 +221,9 @@ class VectorGraphic extends StatefulWidget {
 
   /// A callback that fires if some exception happens during data acquisition or decoding.
   final VectorGraphicsErrorWidget? errorBuilder;
+
+  /// Set transition duration while switching from placeholder to url image
+  final Duration? transitionDuration;
 
   /// If provided, a color filter to apply to the vector graphic when painting.
   ///
@@ -315,14 +323,14 @@ class _VectorGraphicWidgetState extends State<VectorGraphic> {
   void didChangeDependencies() {
     locale = Localizations.maybeLocaleOf(context);
     textDirection = Directionality.maybeOf(context);
-    _loadAssetBytes();
+    unawaited(_loadAssetBytes());
     super.didChangeDependencies();
   }
 
   @override
   void didUpdateWidget(covariant VectorGraphic oldWidget) {
     if (oldWidget.loader != widget.loader) {
-      _loadAssetBytes();
+      unawaited(_loadAssetBytes());
     }
     super.didUpdateWidget(oldWidget);
   }
@@ -358,12 +366,6 @@ class _VectorGraphicWidgetState extends State<VectorGraphic> {
         textDirection: key.textDirection,
         clipViewbox: key.clipViewbox,
         loader: loader,
-        onError: (Object error, StackTrace? stackTrace) {
-          return _handleError(
-            error,
-            stackTrace,
-          );
-        },
       );
     }).then((PictureInfo pictureInfo) {
       return _PictureData(pictureInfo, 0, key);
@@ -376,13 +378,17 @@ class _VectorGraphicWidgetState extends State<VectorGraphic> {
   }
 
   void _handleError(Object error, StackTrace? stackTrace) {
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _error = error;
       _stackTrace = stackTrace;
     });
   }
 
-  void _loadAssetBytes() {
+  Future<void> _loadAssetBytes() async {
     // First check if we have an avilable picture and use this immediately.
     final Object loaderKey = widget.loader.cacheKey(context);
     final _PictureKey key =
@@ -398,7 +404,9 @@ class _VectorGraphicWidgetState extends State<VectorGraphic> {
     }
     // If not, then check if there is a pending load.
     final BytesLoader loader = widget.loader;
-    _loadPicture(context, key, loader).then((_PictureData data) {
+
+    try {
+      final _PictureData data = await _loadPicture(context, key, loader);
       data.count += 1;
 
       // The widget may have changed, requesting a new vector graphic before
@@ -407,14 +415,18 @@ class _VectorGraphicWidgetState extends State<VectorGraphic> {
         _maybeReleasePicture(data);
         return;
       }
+
       if (data.count == 1) {
         _livePictureCache[key] = data;
       }
+
       setState(() {
         _maybeReleasePicture(_pictureInfo);
         _pictureInfo = data;
       });
-    });
+    } catch (error, stackTrace) {
+      _handleError(error, stackTrace);
+    }
   }
 
   static final bool _webRenderObject = useHtmlRenderObject();
@@ -510,6 +522,19 @@ class _VectorGraphicWidgetState extends State<VectorGraphic> {
             width: widget.width,
             height: widget.height,
           );
+    }
+
+    if (widget.transitionDuration != null) {
+      child = AnimatedSwitcher(
+        duration: widget.transitionDuration!,
+        child: child,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+      );
     }
 
     if (!widget.excludeFromSemantics) {

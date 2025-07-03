@@ -1,3 +1,7 @@
+## NEXT
+
+* Updates minimum supported SDK version to Flutter 3.27/Dart 3.6.
+
 ## 1.1.2
 
 * Adds comment for the limit parameter.
