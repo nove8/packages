@@ -4,7 +4,6 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +13,13 @@ import 'package:video_player_platform_interface/video_player_platform_interface.
 import 'src/closed_caption_file.dart';
 
 export 'package:video_player_platform_interface/video_player_platform_interface.dart'
-    show DataSourceType, DurationRange, VideoFormat, VideoPlayerOptions;
+    show
+        DataSourceType,
+        DurationRange,
+        VideoFormat,
+        VideoPlayerOptions,
+        VideoPlayerWebOptions,
+        VideoPlayerWebOptionsControls;
 
 export 'src/closed_caption_file.dart';
 
@@ -436,6 +441,14 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     _creatingCompleter!.complete(null);
     final Completer<void> initializingCompleter = Completer<void>();
 
+    // Apply the web-specific options
+    if (kIsWeb && videoPlayerOptions?.webOptions != null) {
+      await _videoPlayerPlatform.setWebOptions(
+        _textureId,
+        videoPlayerOptions!.webOptions!,
+      );
+    }
+
     void eventListener(VideoEvent event) {
       if (_isDisposed) {
         return;
@@ -451,6 +464,16 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
             errorDescription: null,
             isCompleted: false,
           );
+          assert(
+            !initializingCompleter.isCompleted,
+            'VideoPlayerController already initialized. This is typically a '
+            'sign that an implementation of the VideoPlayerPlatform '
+            '(${_videoPlayerPlatform.runtimeType}) has a bug and is sending '
+            'more than one initialized event per instance.',
+          );
+          if (initializingCompleter.isCompleted) {
+            throw StateError('VideoPlayerController already initialized');
+          }
           initializingCompleter.complete(null);
           _applyLooping();
           _applyVolume();
@@ -561,10 +584,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (value.isPlaying) {
       await _videoPlayerPlatform.play(_textureId);
 
-      // Cancel previous timer.
       _timer?.cancel();
       _timer = Timer.periodic(
-        const Duration(milliseconds: 500),
+        const Duration(milliseconds: 100),
         (Timer timer) async {
           if (_isDisposed) {
             return;
@@ -743,6 +765,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   }
 
   void _updatePosition(Duration position) {
+    // The underlying native implementation on some platforms sometimes reports
+    // a position slightly past the reported max duration. Clamp to the duration
+    // to insulate clients from this behavior.
+    if (position > value.duration) {
+      position = value.duration;
+    }
     value = value.copyWith(
       position: position,
       caption: _getCaptionAt(position),
@@ -853,17 +881,22 @@ class _VideoPlayerState extends State<VideoPlayer> {
 }
 
 class _VideoPlayerWithRotation extends StatelessWidget {
-  const _VideoPlayerWithRotation({required this.rotation, required this.child});
+  const _VideoPlayerWithRotation({required this.rotation, required this.child})
+      : assert(rotation % 90 == 0, 'Rotation must be a multiple of 90');
+
   final int rotation;
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => rotation == 0
-      ? child
-      : Transform.rotate(
-          angle: rotation * math.pi / 180,
-          child: child,
-        );
+  Widget build(BuildContext context) {
+    if (rotation == 0) {
+      return child;
+    }
+    return RotatedBox(
+      quarterTurns: rotation ~/ 90,
+      child: child,
+    );
+  }
 }
 
 /// Used to configure the [VideoProgressIndicator] widget's colors for how it

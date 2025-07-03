@@ -82,11 +82,17 @@ class ExampleGoogleMapController {
     GoogleMapsFlutterPlatform.instance
         .onCircleTap(mapId: mapId)
         .listen((CircleTapEvent e) => _googleMapState.onCircleTap(e.value));
+    GoogleMapsFlutterPlatform.instance.onGroundOverlayTap(mapId: mapId).listen(
+        (GroundOverlayTapEvent e) =>
+            _googleMapState.onGroundOverlayTap(e.value));
     GoogleMapsFlutterPlatform.instance
         .onTap(mapId: mapId)
         .listen((MapTapEvent e) => _googleMapState.onTap(e.position));
     GoogleMapsFlutterPlatform.instance.onLongPress(mapId: mapId).listen(
         (MapLongPressEvent e) => _googleMapState.onLongPress(e.position));
+    GoogleMapsFlutterPlatform.instance
+        .onClusterTap(mapId: mapId)
+        .listen((ClusterTapEvent e) => _googleMapState.onClusterTap(e.value));
   }
 
   /// Updates configuration options of the map user interface.
@@ -99,6 +105,20 @@ class ExampleGoogleMapController {
   Future<void> _updateMarkers(MarkerUpdates markerUpdates) {
     return GoogleMapsFlutterPlatform.instance
         .updateMarkers(markerUpdates, mapId: mapId);
+  }
+
+  /// Updates cluster manager configuration.
+  Future<void> _updateClusterManagers(
+      ClusterManagerUpdates clusterManagerUpdates) {
+    return GoogleMapsFlutterPlatform.instance
+        .updateClusterManagers(clusterManagerUpdates, mapId: mapId);
+  }
+
+  /// Updates ground overlay configuration.
+  Future<void> _updateGroundOverlays(
+      GroundOverlayUpdates groundOverlayUpdates) {
+    return GoogleMapsFlutterPlatform.instance
+        .updateGroundOverlays(groundOverlayUpdates, mapId: mapId);
   }
 
   /// Updates polygon configuration.
@@ -133,9 +153,10 @@ class ExampleGoogleMapController {
   }
 
   /// Starts an animated change of the map camera position.
-  Future<void> animateCamera(CameraUpdate cameraUpdate) {
-    return GoogleMapsFlutterPlatform.instance
-        .animateCamera(cameraUpdate, mapId: mapId);
+  Future<void> animateCamera(CameraUpdate cameraUpdate, {Duration? duration}) {
+    return GoogleMapsFlutterPlatform.instance.animateCameraWithConfiguration(
+        cameraUpdate, CameraUpdateAnimationConfiguration(duration: duration),
+        mapId: mapId);
   }
 
   /// Changes the map camera position.
@@ -214,7 +235,6 @@ class ExampleGoogleMap extends StatefulWidget {
     this.onMapCreated,
     this.gestureRecognizers = const <Factory<OneSequenceGestureRecognizer>>{},
     this.compassEnabled = true,
-    this.mapToolbarEnabled = true,
     this.cameraTargetBounds = CameraTargetBounds.unbounded,
     this.mapType = MapType.normal,
     this.minMaxZoomPreference = MinMaxZoomPreference.unbounded,
@@ -222,7 +242,6 @@ class ExampleGoogleMap extends StatefulWidget {
     this.scrollGesturesEnabled = true,
     this.zoomControlsEnabled = true,
     this.zoomGesturesEnabled = true,
-    this.liteModeEnabled = false,
     this.tiltGesturesEnabled = true,
     this.myLocationEnabled = false,
     this.myLocationButtonEnabled = true,
@@ -237,8 +256,10 @@ class ExampleGoogleMap extends StatefulWidget {
     this.polygons = const <Polygon>{},
     this.polylines = const <Polyline>{},
     this.circles = const <Circle>{},
+    this.clusterManagers = const <ClusterManager>{},
     this.onCameraMoveStarted,
     this.tileOverlays = const <TileOverlay>{},
+    this.groundOverlays = const <GroundOverlay>{},
     this.onCameraMove,
     this.onCameraIdle,
     this.onTap,
@@ -257,9 +278,6 @@ class ExampleGoogleMap extends StatefulWidget {
 
   /// True if the map should show a compass when rotated.
   final bool compassEnabled;
-
-  /// True if the map should show a toolbar when you interact with the map. Android only.
-  final bool mapToolbarEnabled;
 
   /// Geographical bounding box for the camera target.
   final CameraTargetBounds cameraTargetBounds;
@@ -288,9 +306,6 @@ class ExampleGoogleMap extends StatefulWidget {
   /// True if the map view should respond to zoom gestures.
   final bool zoomGesturesEnabled;
 
-  /// True if the map view should be in lite mode. Android only.
-  final bool liteModeEnabled;
-
   /// True if the map view should respond to tilt gestures.
   final bool tiltGesturesEnabled;
 
@@ -311,6 +326,12 @@ class ExampleGoogleMap extends StatefulWidget {
 
   /// Tile overlays to be placed on the map.
   final Set<TileOverlay> tileOverlays;
+
+  /// Cluster Managers to be placed for the map.
+  final Set<ClusterManager> clusterManagers;
+
+  /// Ground overlays to be initialized for the map.
+  final Set<GroundOverlay> groundOverlays;
 
   /// Called when the camera starts moving.
   final VoidCallback? onCameraMoveStarted;
@@ -371,6 +392,10 @@ class _ExampleGoogleMapState extends State<ExampleGoogleMap> {
   Map<PolygonId, Polygon> _polygons = <PolygonId, Polygon>{};
   Map<PolylineId, Polyline> _polylines = <PolylineId, Polyline>{};
   Map<CircleId, Circle> _circles = <CircleId, Circle>{};
+  Map<ClusterManagerId, ClusterManager> _clusterManagers =
+      <ClusterManagerId, ClusterManager>{};
+  Map<GroundOverlayId, GroundOverlay> _groundOverlays =
+      <GroundOverlayId, GroundOverlay>{};
   late MapConfiguration _mapConfiguration;
 
   @override
@@ -390,6 +415,8 @@ class _ExampleGoogleMapState extends State<ExampleGoogleMap> {
         polygons: widget.polygons,
         polylines: widget.polylines,
         circles: widget.circles,
+        clusterManagers: widget.clusterManagers,
+        groundOverlays: widget.groundOverlays,
       ),
       mapConfiguration: _mapConfiguration,
     );
@@ -399,10 +426,12 @@ class _ExampleGoogleMapState extends State<ExampleGoogleMap> {
   void initState() {
     super.initState();
     _mapConfiguration = _configurationFromMapWidget(widget);
+    _clusterManagers = keyByClusterManagerId(widget.clusterManagers);
     _markers = keyByMarkerId(widget.markers);
     _polygons = keyByPolygonId(widget.polygons);
     _polylines = keyByPolylineId(widget.polylines);
     _circles = keyByCircleId(widget.circles);
+    _groundOverlays = keyByGroundOverlayId(widget.groundOverlays);
   }
 
   @override
@@ -416,11 +445,13 @@ class _ExampleGoogleMapState extends State<ExampleGoogleMap> {
   void didUpdateWidget(ExampleGoogleMap oldWidget) {
     super.didUpdateWidget(oldWidget);
     _updateOptions();
+    _updateClusterManagers();
     _updateMarkers();
     _updatePolygons();
     _updatePolylines();
     _updateCircles();
     _updateTileOverlays();
+    _updateGroundOverlays();
   }
 
   Future<void> _updateOptions() async {
@@ -439,6 +470,20 @@ class _ExampleGoogleMapState extends State<ExampleGoogleMap> {
     unawaited(controller._updateMarkers(
         MarkerUpdates.from(_markers.values.toSet(), widget.markers)));
     _markers = keyByMarkerId(widget.markers);
+  }
+
+  Future<void> _updateClusterManagers() async {
+    final ExampleGoogleMapController controller = await _controller.future;
+    unawaited(controller._updateClusterManagers(ClusterManagerUpdates.from(
+        _clusterManagers.values.toSet(), widget.clusterManagers)));
+    _clusterManagers = keyByClusterManagerId(widget.clusterManagers);
+  }
+
+  Future<void> _updateGroundOverlays() async {
+    final ExampleGoogleMapController controller = await _controller.future;
+    unawaited(controller._updateGroundOverlays(GroundOverlayUpdates.from(
+        _groundOverlays.values.toSet(), widget.groundOverlays)));
+    _groundOverlays = keyByGroundOverlayId(widget.groundOverlays);
   }
 
   Future<void> _updatePolygons() async {
@@ -507,6 +552,10 @@ class _ExampleGoogleMapState extends State<ExampleGoogleMap> {
     _circles[circleId]!.onTap?.call();
   }
 
+  void onGroundOverlayTap(GroundOverlayId groundOverlayId) {
+    _groundOverlays[groundOverlayId]!.onTap?.call();
+  }
+
   void onInfoWindowTap(MarkerId markerId) {
     _markers[markerId]!.infoWindow.onTap?.call();
   }
@@ -518,13 +567,18 @@ class _ExampleGoogleMapState extends State<ExampleGoogleMap> {
   void onLongPress(LatLng position) {
     widget.onLongPress?.call(position);
   }
+
+  void onClusterTap(Cluster cluster) {
+    final ClusterManager? clusterManager =
+        _clusterManagers[cluster.clusterManagerId];
+    clusterManager?.onClusterTap?.call(cluster);
+  }
 }
 
 /// Builds a [MapConfiguration] from the given [map].
 MapConfiguration _configurationFromMapWidget(ExampleGoogleMap map) {
   return MapConfiguration(
     compassEnabled: map.compassEnabled,
-    mapToolbarEnabled: map.mapToolbarEnabled,
     cameraTargetBounds: map.cameraTargetBounds,
     mapType: map.mapType,
     minMaxZoomPreference: map.minMaxZoomPreference,
@@ -534,7 +588,6 @@ MapConfiguration _configurationFromMapWidget(ExampleGoogleMap map) {
     trackCameraPosition: map.onCameraMove != null,
     zoomControlsEnabled: map.zoomControlsEnabled,
     zoomGesturesEnabled: map.zoomGesturesEnabled,
-    liteModeEnabled: map.liteModeEnabled,
     myLocationEnabled: map.myLocationEnabled,
     myLocationButtonEnabled: map.myLocationButtonEnabled,
     padding: map.padding,

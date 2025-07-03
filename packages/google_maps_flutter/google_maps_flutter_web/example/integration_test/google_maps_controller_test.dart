@@ -20,12 +20,30 @@ import 'google_maps_controller_test.mocks.dart';
 // LatLng values.
 const String _kCloudMapId = '000000000000000'; // Dummy map ID.
 
+gmaps.Map mapShim() => throw UnimplementedError();
+
 @GenerateNiceMocks(<MockSpec<dynamic>>[
-  MockSpec<CirclesController>(),
-  MockSpec<PolygonsController>(),
-  MockSpec<PolylinesController>(),
-  MockSpec<MarkersController>(),
-  MockSpec<TileOverlaysController>(),
+  MockSpec<CirclesController>(
+    fallbackGenerators: <Symbol, Function>{#googleMap: mapShim},
+  ),
+  MockSpec<HeatmapsController>(
+    fallbackGenerators: <Symbol, Function>{#googleMap: mapShim},
+  ),
+  MockSpec<PolygonsController>(
+    fallbackGenerators: <Symbol, Function>{#googleMap: mapShim},
+  ),
+  MockSpec<PolylinesController>(
+    fallbackGenerators: <Symbol, Function>{#googleMap: mapShim},
+  ),
+  MockSpec<MarkersController>(
+    fallbackGenerators: <Symbol, Function>{#googleMap: mapShim},
+  ),
+  MockSpec<TileOverlaysController>(
+    fallbackGenerators: <Symbol, Function>{#googleMap: mapShim},
+  ),
+  MockSpec<GroundOverlaysController>(
+    fallbackGenerators: <Symbol, Function>{#googleMap: mapShim},
+  ),
 ])
 
 /// Test Google Map Controller
@@ -149,6 +167,20 @@ void main() {
           }, throwsAssertionError);
         });
 
+        testWidgets('cannot updateHeatmaps after dispose',
+            (WidgetTester tester) async {
+          controller.dispose();
+
+          expect(() {
+            controller.updateHeatmaps(
+              HeatmapUpdates.from(
+                const <Heatmap>{},
+                const <Heatmap>{},
+              ),
+            );
+          }, throwsAssertionError);
+        });
+
         testWidgets('cannot updatePolygons after dispose',
             (WidgetTester tester) async {
           controller.dispose();
@@ -181,14 +213,12 @@ void main() {
             (WidgetTester tester) async {
           controller.dispose();
 
-          expect(() {
-            controller.updateMarkers(
-              MarkerUpdates.from(
+          await expectLater(
+              controller.updateMarkers(MarkerUpdates.from(
                 const <Marker>{},
                 const <Marker>{},
-              ),
-            );
-          }, throwsAssertionError);
+              )),
+              throwsAssertionError);
 
           expect(() {
             controller.showInfoWindow(const MarkerId('any'));
@@ -219,19 +249,23 @@ void main() {
 
     group('init', () {
       late MockCirclesController circles;
+      late MockHeatmapsController heatmaps;
       late MockMarkersController markers;
       late MockPolygonsController polygons;
       late MockPolylinesController polylines;
       late MockTileOverlaysController tileOverlays;
-      late gmaps.GMap map;
+      late MockGroundOverlaysController groundOverlays;
+      late gmaps.Map map;
 
       setUp(() {
         circles = MockCirclesController();
+        heatmaps = MockHeatmapsController();
         markers = MockMarkersController();
         polygons = MockPolygonsController();
         polylines = MockPolylinesController();
         tileOverlays = MockTileOverlaysController();
-        map = gmaps.GMap(createDivElement());
+        groundOverlays = MockGroundOverlaysController();
+        map = gmaps.Map(createDivElement());
       });
 
       testWidgets('listens to map events', (WidgetTester tester) async {
@@ -239,28 +273,30 @@ void main() {
           ..debugSetOverrides(
             createMap: (_, __) => map,
             circles: circles,
+            heatmaps: heatmaps,
             markers: markers,
             polygons: polygons,
             polylines: polylines,
+            groundOverlays: groundOverlays,
           )
           ..init();
 
         // Trigger events on the map, and verify they've been broadcast to the stream
         final Stream<MapEvent<Object?>> capturedEvents = stream.stream.take(5);
 
-        gmaps.Event.trigger(
+        gmaps.event.trigger(
           map,
           'click',
-          <Object>[gmaps.MapMouseEvent()..latLng = gmaps.LatLng(0, 0)],
+          gmaps.MapMouseEvent()..latLng = gmaps.LatLng(0, 0),
         );
-        gmaps.Event.trigger(
+        gmaps.event.trigger(
           map,
           'rightclick',
-          <Object>[gmaps.MapMouseEvent()..latLng = gmaps.LatLng(0, 0)],
+          gmaps.MapMouseEvent()..latLng = gmaps.LatLng(0, 0),
         );
         // The following line causes 2 events
-        gmaps.Event.trigger(map, 'bounds_changed', <Object>[]);
-        gmaps.Event.trigger(map, 'idle', <Object>[]);
+        gmaps.event.trigger(map, 'bounds_changed');
+        gmaps.event.trigger(map, 'idle');
 
         final List<MapEvent<Object?>> events = await capturedEvents.toList();
 
@@ -277,18 +313,22 @@ void main() {
           ..debugSetOverrides(
             createMap: (_, __) => map,
             circles: circles,
+            heatmaps: heatmaps,
             markers: markers,
             polygons: polygons,
             polylines: polylines,
             tileOverlays: tileOverlays,
+            groundOverlays: groundOverlays,
           )
           ..init();
 
         verify(circles.bindToMap(mapId, map));
+        verify(heatmaps.bindToMap(mapId, map));
         verify(markers.bindToMap(mapId, map));
         verify(polygons.bindToMap(mapId, map));
         verify(polylines.bindToMap(mapId, map));
         verify(tileOverlays.bindToMap(mapId, map));
+        verify(groundOverlays.bindToMap(mapId, map));
       });
 
       testWidgets('renders initial geometry', (WidgetTester tester) async {
@@ -296,6 +336,17 @@ void main() {
           const Circle(
             circleId: CircleId('circle-1'),
             zIndex: 1234,
+          ),
+        }, heatmaps: <Heatmap>{
+          const Heatmap(
+            heatmapId: HeatmapId('heatmap-1'),
+            data: <WeightedLatLng>[
+              WeightedLatLng(LatLng(43.355114, -5.851333)),
+              WeightedLatLng(LatLng(43.354797, -5.851860)),
+              WeightedLatLng(LatLng(43.354469, -5.851318)),
+              WeightedLatLng(LatLng(43.354762, -5.850824)),
+            ],
+            radius: HeatmapRadius.fromPixels(20),
           ),
         }, markers: <Marker>{
           const Marker(
@@ -337,23 +388,43 @@ void main() {
           ])
         }, tileOverlays: <TileOverlay>{
           const TileOverlay(tileOverlayId: TileOverlayId('overlay-1'))
+        }, groundOverlays: <GroundOverlay>{
+          GroundOverlay.fromBounds(
+            groundOverlayId: const GroundOverlayId('bounds_1'),
+            bounds: LatLngBounds(
+              northeast: const LatLng(100, 0),
+              southwest: const LatLng(0, 100),
+            ),
+            image: AssetMapBitmap(
+              'assets/red_square.png',
+              imagePixelRatio: 1.0,
+              bitmapScaling: MapBitmapScaling.none,
+            ),
+            transparency: 0.7,
+            bearing: 10,
+            zIndex: 10,
+          )
         });
 
         controller = createController(mapObjects: mapObjects)
           ..debugSetOverrides(
             circles: circles,
+            heatmaps: heatmaps,
             markers: markers,
             polygons: polygons,
             polylines: polylines,
             tileOverlays: tileOverlays,
+            groundOverlays: groundOverlays,
           )
           ..init();
 
         verify(circles.addCircles(mapObjects.circles));
+        verify(heatmaps.addHeatmaps(mapObjects.heatmaps));
         verify(markers.addMarkers(mapObjects.markers));
         verify(polygons.addPolygons(mapObjects.polygons));
         verify(polylines.addPolylines(mapObjects.polylines));
         verify(tileOverlays.addTileOverlays(mapObjects.tileOverlays));
+        verify(groundOverlays.addGroundOverlays(mapObjects.groundOverlays));
       });
 
       group('Initialization options', () {
@@ -541,12 +612,12 @@ void main() {
       });
     });
 
-    // These are the methods that are delegated to the gmaps.GMap object, that we can mock...
+    // These are the methods that are delegated to the gmaps.Map object, that we can mock...
     group('Map control methods', () {
-      late gmaps.GMap map;
+      late gmaps.Map map;
 
       setUp(() {
-        map = gmaps.GMap(
+        map = gmaps.Map(
           createDivElement(),
           gmaps.MapOptions()
             ..zoom = 10
@@ -606,7 +677,7 @@ void main() {
 
       group('viewport getters', () {
         testWidgets('getVisibleRegion', (WidgetTester tester) async {
-          final gmaps.LatLng gmCenter = map.center!;
+          final gmaps.LatLng gmCenter = map.center;
           final LatLng center =
               LatLng(gmCenter.lat.toDouble(), gmCenter.lng.toDouble());
 
@@ -660,6 +731,76 @@ void main() {
         }));
       });
 
+      testWidgets('updateHeatmaps', (WidgetTester tester) async {
+        final MockHeatmapsController mock = MockHeatmapsController();
+        controller.debugSetOverrides(heatmaps: mock);
+
+        const List<WeightedLatLng> heatmapPoints = <WeightedLatLng>[
+          WeightedLatLng(LatLng(37.782, -122.447)),
+          WeightedLatLng(LatLng(37.782, -122.445)),
+          WeightedLatLng(LatLng(37.782, -122.443)),
+          WeightedLatLng(LatLng(37.782, -122.441)),
+          WeightedLatLng(LatLng(37.782, -122.439)),
+          WeightedLatLng(LatLng(37.782, -122.437)),
+          WeightedLatLng(LatLng(37.782, -122.435)),
+          WeightedLatLng(LatLng(37.785, -122.447)),
+          WeightedLatLng(LatLng(37.785, -122.445)),
+          WeightedLatLng(LatLng(37.785, -122.443)),
+          WeightedLatLng(LatLng(37.785, -122.441)),
+          WeightedLatLng(LatLng(37.785, -122.439)),
+          WeightedLatLng(LatLng(37.785, -122.437)),
+          WeightedLatLng(LatLng(37.785, -122.435))
+        ];
+
+        final Set<Heatmap> previous = <Heatmap>{
+          const Heatmap(
+            heatmapId: HeatmapId('to-be-updated'),
+            data: heatmapPoints,
+            radius: HeatmapRadius.fromPixels(20),
+          ),
+          const Heatmap(
+            heatmapId: HeatmapId('to-be-removed'),
+            data: heatmapPoints,
+            radius: HeatmapRadius.fromPixels(20),
+          ),
+        };
+
+        final Set<Heatmap> current = <Heatmap>{
+          const Heatmap(
+            heatmapId: HeatmapId('to-be-updated'),
+            data: heatmapPoints,
+            dissipating: false,
+            radius: HeatmapRadius.fromPixels(20),
+          ),
+          const Heatmap(
+            heatmapId: HeatmapId('to-be-added'),
+            data: heatmapPoints,
+            radius: HeatmapRadius.fromPixels(20),
+          ),
+        };
+
+        controller.updateHeatmaps(HeatmapUpdates.from(previous, current));
+
+        verify(mock.removeHeatmaps(<HeatmapId>{
+          const HeatmapId('to-be-removed'),
+        }));
+        verify(mock.addHeatmaps(<Heatmap>{
+          const Heatmap(
+            heatmapId: HeatmapId('to-be-added'),
+            data: heatmapPoints,
+            radius: HeatmapRadius.fromPixels(20),
+          ),
+        }));
+        verify(mock.changeHeatmaps(<Heatmap>{
+          const Heatmap(
+            heatmapId: HeatmapId('to-be-updated'),
+            data: heatmapPoints,
+            dissipating: false,
+            radius: HeatmapRadius.fromPixels(20),
+          ),
+        }));
+      });
+
       testWidgets('updateMarkers', (WidgetTester tester) async {
         final MockMarkersController mock = MockMarkersController();
         controller = createController()..debugSetOverrides(markers: mock);
@@ -674,7 +815,7 @@ void main() {
           const Marker(markerId: MarkerId('to-be-added')),
         };
 
-        controller.updateMarkers(MarkerUpdates.from(previous, current));
+        await controller.updateMarkers(MarkerUpdates.from(previous, current));
 
         verify(mock.removeMarkers(<MarkerId>{
           const MarkerId('to-be-removed'),
@@ -771,6 +912,62 @@ void main() {
         verify(mock.changeTileOverlays(<TileOverlay>{
           const TileOverlay(
               tileOverlayId: TileOverlayId('to-be-updated'), visible: false),
+        }));
+      });
+
+      testWidgets('updateGroundOverlays', (WidgetTester tester) async {
+        final MockGroundOverlaysController mock =
+            MockGroundOverlaysController();
+        controller = createController()
+          ..debugSetOverrides(groundOverlays: mock);
+
+        final LatLngBounds bounds = LatLngBounds(
+          northeast: const LatLng(100, 0),
+          southwest: const LatLng(0, 100),
+        );
+        const LatLng position = LatLng(50, 50);
+        final AssetMapBitmap image = AssetMapBitmap(
+          'assets/red_square.png',
+          imagePixelRatio: 1.0,
+          bitmapScaling: MapBitmapScaling.none,
+        );
+
+        final GroundOverlay groundOverlayToBeUpdated = GroundOverlay.fromBounds(
+          groundOverlayId: const GroundOverlayId('to-be-updated'),
+          image: image,
+          bounds: bounds,
+        );
+        final GroundOverlay groundOverlayToBeRemoved =
+            GroundOverlay.fromPosition(
+          groundOverlayId: const GroundOverlayId('to-be-removed'),
+          image: image,
+          position: position,
+        );
+        final GroundOverlay groundOverlayToBeAdded = GroundOverlay.fromPosition(
+          groundOverlayId: const GroundOverlayId('to-be-added'),
+          image: image,
+          position: position,
+        );
+
+        final Set<GroundOverlay> previous = <GroundOverlay>{
+          groundOverlayToBeUpdated,
+          groundOverlayToBeRemoved
+        };
+
+        final Set<GroundOverlay> current = <GroundOverlay>{
+          groundOverlayToBeUpdated.copyWith(visibleParam: false),
+          groundOverlayToBeAdded
+        };
+
+        controller
+            .updateGroundOverlays(GroundOverlayUpdates.from(previous, current));
+
+        verify(mock.removeGroundOverlays(<GroundOverlayId>{
+          groundOverlayToBeRemoved.groundOverlayId,
+        }));
+        verify(mock.addGroundOverlays(<GroundOverlay>{groundOverlayToBeAdded}));
+        verify(mock.changeGroundOverlays(<GroundOverlay>{
+          groundOverlayToBeUpdated.copyWith(visibleParam: false),
         }));
       });
 

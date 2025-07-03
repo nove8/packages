@@ -7,8 +7,14 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(PigeonOptions(
   dartOut: 'lib/src/messages.g.dart',
   dartTestOut: 'test/test_api.g.dart',
-  objcHeaderOut: 'darwin/Classes/messages.g.h',
-  objcSourceOut: 'darwin/Classes/messages.g.m',
+  objcHeaderOut:
+      'darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/messages.g.h',
+  objcSourceOut:
+      'darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/messages.g.m',
+  objcOptions: ObjcOptions(
+    prefix: 'FIA',
+    headerIncludePath: './include/in_app_purchase_storekit_objc/messages.g.h',
+  ),
   copyrightHeader: 'pigeons/copyright.txt',
 ))
 class SKPaymentTransactionMessage {
@@ -91,7 +97,7 @@ class SKErrorMessage {
 
   final int code;
   final String domain;
-  final Map<String?, Object?>? userInfo;
+  final Map<String, Object>? userInfo;
 }
 
 class SKPaymentDiscountMessage {
@@ -123,17 +129,17 @@ class SKStorefrontMessage {
 class SKProductsResponseMessage {
   const SKProductsResponseMessage(
       {required this.products, required this.invalidProductIdentifiers});
-  final List<SKProductMessage?>? products;
-  final List<String?>? invalidProductIdentifiers;
+  final List<SKProductMessage>? products;
+  final List<String>? invalidProductIdentifiers;
 }
 
 class SKProductMessage {
   const SKProductMessage(
       {required this.productIdentifier,
       required this.localizedTitle,
-      required this.localizedDescription,
       required this.priceLocale,
       required this.price,
+      this.localizedDescription,
       this.subscriptionGroupIdentifier,
       this.subscriptionPeriod,
       this.introductoryPrice,
@@ -141,13 +147,16 @@ class SKProductMessage {
 
   final String productIdentifier;
   final String localizedTitle;
-  final String localizedDescription;
+  // This field should be nullable to handle occasional nulls in the StoreKit
+  // object despite the the StoreKit header showing that it is nonnullable
+  // https://github.com/flutter/flutter/issues/154047
+  final String? localizedDescription;
   final SKPriceLocaleMessage priceLocale;
   final String? subscriptionGroupIdentifier;
   final String price;
   final SKProductSubscriptionPeriodMessage? subscriptionPeriod;
   final SKProductDiscountMessage? introductoryPrice;
-  final List<SKProductDiscountMessage?>? discounts;
+  final List<SKProductDiscountMessage>? discounts;
 }
 
 class SKPriceLocaleMessage {
@@ -238,7 +247,7 @@ abstract class InAppPurchaseAPI {
   SKProductsResponseMessage startProductRequest(
       List<String> productIdentifiers);
 
-  void finishTransaction(Map<String, String?> finishMap);
+  void finishTransaction(Map<String, Object?> finishMap);
 
   void restoreTransactions(String? applicationUserName);
 
@@ -258,4 +267,6 @@ abstract class InAppPurchaseAPI {
   void removePaymentQueueDelegate();
 
   void showPriceConsentIfNeeded();
+
+  bool supportsStoreKit2();
 }

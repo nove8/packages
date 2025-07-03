@@ -1,3 +1,86 @@
+## 3.21.0
+
+* Adds support to set whether to draw the scrollbar. See
+  `WebKitWebViewController.setVerticalScrollBarEnabled`,
+  `WebKitWebViewController.setHorizontalScrollBarEnabled`,
+  `WebKitWebViewController.supportsSetScrollBarsEnabled`.
+
+## 3.20.0
+
+* Adds support to disable a preview of the destination for a link. See
+  `WebKitWebViewController.setAllowsLinkPreview`.
+
+## 3.19.0
+
+* Adds support to set the over-scroll mode for the WebView. See `WebKitWebViewController.setOverScrollMode`.
+
+## 3.18.6
+
+* Fixes `PlatformException` when calling `loadFlutterAsset` on macOS.
+* Updates native wrapper with methods handling `SecTust` and `SecCertificate`. 
+
+## 3.18.5
+
+* Fixes crash when sending undefined message via JavaScript channel.
+
+## 3.18.4
+
+* Fixes crash when native `WKFrameInfo.request` is nil.
+
+## 3.18.3
+
+* Fixes crash where the native `AuthenticationChallengeResponse` could not be found for auth
+  requests.
+
+## 3.18.2
+
+* Updates generated pigeon code to ensure the internal wrapper immediately sends constructor calls.
+
+## 3.18.1
+
+* Fixes bug that would allow the API wrapper to return `null` when a non-null value was required in
+  a callback method.
+* Changes default method to enable JavaScript for web content to
+  `WKWebpagePreferences.allowsContentJavaScript`. 
+
+## 3.18.0
+
+* Updates internal API wrapper to use ProxyApis.
+
+## 3.17.0
+
+* Adds a change listener for the `canGoBack` property. See
+  `WebKitWebViewController.setOnCanGoBackChange`.
+* Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
+
+## 3.16.3
+
+* Fixes re-registering existing channels while removing Javascript channels.
+
+## 3.16.2
+
+* Updates README to remove contributor-focused documentation.
+
+## 3.16.1
+
+* Adds `missing_code_block_language_in_doc_comment` lint.
+
+## 3.16.0
+
+* Supports NTLM for authentication.
+
+## 3.15.0
+
+* Adds macOS support.
+
+## 3.14.0
+
+* Adds Swift Package Manager compatibility.
+
+## 3.13.1
+
+* Fixes `JSON.stringify()` cannot serialize cyclic structures.
+
 ## 3.13.0
 
 * Adds `decidePolicyForNavigationResponse` to internal WKNavigationDelegate to support the
@@ -80,7 +163,7 @@
 
 * Introduces `NSError.toString` for better diagnostics.
 
-## 3.6.2 
+## 3.6.2
 
 * Fixes unawaited_futures violations.
 

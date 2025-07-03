@@ -17,10 +17,10 @@ import 'package:yaml/yaml.dart';
 
 import 'common/core.dart';
 import 'common/file_utils.dart';
-import 'common/git_version_finder.dart';
 import 'common/output_utils.dart';
 import 'common/package_command.dart';
 import 'common/package_looping_command.dart';
+import 'common/pub_utils.dart';
 import 'common/pub_version_finder.dart';
 import 'common/repository_package.dart';
 
@@ -174,12 +174,12 @@ class PublishCommand extends PackageLoopingCommand {
   @override
   Stream<PackageEnumerationEntry> getPackagesToProcess() async* {
     if (getBoolArg(_allChangedFlag)) {
-      final GitVersionFinder gitVersionFinder = await retrieveVersionFinder();
-      final String baseSha = await gitVersionFinder.getBaseSha();
       print(
           'Publishing all packages that have changed relative to "$baseSha"\n');
-      final List<String> changedPubspecs =
-          await gitVersionFinder.getChangedPubSpecs();
+
+      final List<String> changedPubspecs = changedFiles
+          .where((String file) => file.trim().endsWith('pubspec.yaml'))
+          .toList();
 
       for (final String pubspecPath in changedPubspecs) {
         // git outputs a relativa, Posix-style path.
@@ -199,6 +199,10 @@ class PublishCommand extends PackageLoopingCommand {
     final PackageResult? checkResult = await _checkNeedsRelease(package);
     if (checkResult != null) {
       return checkResult;
+    }
+
+    if (!await _runPrePublishScript(package)) {
+      return PackageResult.fail(<String>['pre-publish failed']);
     }
 
     if (!await _checkGitStatus(package)) {
@@ -345,8 +349,7 @@ Safe to ignore if the package is deleted in this commit.
       <String>[
         'status',
         '--porcelain',
-        '--ignored',
-        package.directory.absolute.path
+        package.directory.absolute.path,
       ],
       throwOnError: false,
     );
@@ -373,6 +376,31 @@ Safe to ignore if the package is deleted in this commit.
       return null;
     }
     return getRemoteUrlResult.stdout as String?;
+  }
+
+  Future<bool> _runPrePublishScript(RepositoryPackage package) async {
+    final File script = package.prePublishScript;
+    if (!script.existsSync()) {
+      return true;
+    }
+    final String relativeScriptPath =
+        getRelativePosixPath(script, from: package.directory);
+    print('Running pre-publish hook $relativeScriptPath...');
+
+    // Ensure that dependencies are available.
+    if (!await runPubGet(package, processRunner, platform)) {
+      printError('Failed to get depenedencies');
+      return false;
+    }
+
+    final int exitCode = await processRunner.runAndStream(
+        'dart', <String>['run', relativeScriptPath],
+        workingDir: package.directory);
+    if (exitCode != 0) {
+      printError('Pre-publish script failed.');
+      return false;
+    }
+    return true;
   }
 
   Future<bool> _publish(RepositoryPackage package) async {

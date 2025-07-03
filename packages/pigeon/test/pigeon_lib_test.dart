@@ -5,9 +5,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:pigeon/ast.dart';
-import 'package:pigeon/generator_tools.dart';
-import 'package:pigeon/pigeon_lib.dart';
+import 'package:pigeon/src/ast.dart';
+import 'package:pigeon/src/generator_tools.dart';
+import 'package:pigeon/src/pigeon_lib.dart';
+import 'package:pigeon/src/pigeon_lib_internal.dart';
 import 'package:test/test.dart';
 
 class _ValidatorGeneratorAdapter implements GeneratorAdapter {
@@ -21,14 +22,14 @@ class _ValidatorGeneratorAdapter implements GeneratorAdapter {
   final IOSink? sink;
 
   @override
-  void generate(
-      StringSink sink, PigeonOptions options, Root root, FileType fileType) {}
+  void generate(StringSink sink, InternalPigeonOptions options, Root root,
+      FileType fileType) {}
 
   @override
-  IOSink? shouldGenerate(PigeonOptions options, FileType _) => sink;
+  IOSink? shouldGenerate(InternalPigeonOptions options, FileType _) => sink;
 
   @override
-  List<Error> validate(PigeonOptions options, Root root) {
+  List<Error> validate(InternalPigeonOptions options, Root root) {
     didCallValidate = true;
     return <Error>[
       Error(message: '_ValidatorGenerator'),
@@ -134,11 +135,6 @@ void main() {
     expect(opts.cppSourceOut, equals('foo.cpp'));
   });
 
-  test('parse args - one_language', () {
-    final PigeonOptions opts = Pigeon.parseArgs(<String>['--one_language']);
-    expect(opts.oneLanguage, isTrue);
-  });
-
   test('parse args - ast_out', () {
     final PigeonOptions opts =
         Pigeon.parseArgs(<String>['--ast_out', 'stdout']);
@@ -161,6 +157,10 @@ class Output1 {
   String? output;
 }
 
+class Unused {
+  String? field;
+}
+
 @HostApi()
 abstract class Api1 {
   Output1 doit(Input1 input);
@@ -169,7 +169,7 @@ abstract class Api1 {
     final ParseResults parseResult = parseSource(code);
     expect(parseResult.errors.length, equals(0));
     final Root root = parseResult.root;
-    expect(root.classes.length, equals(2));
+    expect(root.classes.length, equals(3));
     expect(root.apis.length, equals(1));
     expect(root.apis[0].name, equals('Api1'));
     expect(root.apis[0].methods.length, equals(1));
@@ -181,15 +181,19 @@ abstract class Api1 {
 
     Class? input;
     Class? output;
+    Class? unused;
     for (final Class classDefinition in root.classes) {
       if (classDefinition.name == 'Input1') {
         input = classDefinition;
       } else if (classDefinition.name == 'Output1') {
         output = classDefinition;
+      } else if (classDefinition.name == 'Unused') {
+        unused = classDefinition;
       }
     }
     expect(input, isNotNull);
     expect(output, isNotNull);
+    expect(unused, isNotNull);
 
     expect(input?.fields.length, equals(1));
     expect(input?.fields[0].name, equals('input'));
@@ -200,6 +204,11 @@ abstract class Api1 {
     expect(output?.fields[0].name, equals('output'));
     expect(output?.fields[0].type.baseName, equals('String'));
     expect(output?.fields[0].type.isNullable, isTrue);
+
+    expect(unused?.fields.length, equals(1));
+    expect(unused?.fields[0].name, equals('field'));
+    expect(unused?.fields[0].type.baseName, equals('String'));
+    expect(unused?.fields[0].type.isNullable, isTrue);
   });
 
   test('invalid datatype', () {
@@ -217,6 +226,39 @@ abstract class Api {
     expect(results.errors.length, 1);
     expect(results.errors[0].message, contains('InvalidDatatype'));
     expect(results.errors[0].message, contains('dynamic'));
+  });
+
+  test('Only allow one api annotation', () {
+    const String source = '''
+@HostApi()
+@FlutterApi()
+abstract class Api {
+  int foo();
+}
+''';
+    final ParseResults results = parseSource(source);
+    expect(results.errors.length, 1);
+    expect(
+        results.errors[0].message,
+        contains(
+            'API "Api" can only have one API annotation but contains: [@HostApi(), @FlutterApi()]'));
+  });
+
+  test('Only allow one api annotation plus @ConfigurePigeon', () {
+    const String source = '''
+@ConfigurePigeon(InternalPigeonOptions(
+  dartOut: 'stdout',
+  javaOut: 'stdout',
+  dartOptions: DartOptions(),
+))
+@HostApi()
+abstract class Api {
+  void ping();
+}
+
+''';
+    final ParseResults results = parseSource(source);
+    expect(results.errors.length, 0);
   });
 
   test('enum in classes', () {
@@ -410,10 +452,11 @@ abstract class NestorApi {
   test('Dart generator copyright flag', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
     const PigeonOptions options =
-        PigeonOptions(copyrightHeader: './copyright_header.txt');
+        PigeonOptions(copyrightHeader: './copyright_header.txt', dartOut: '');
     final DartGeneratorAdapter dartGeneratorAdapter = DartGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
-    dartGeneratorAdapter.generate(buffer, options, root, FileType.na);
+    dartGeneratorAdapter.generate(buffer,
+        InternalPigeonOptions.fromPigeonOptions(options), root, FileType.na);
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
@@ -423,29 +466,44 @@ abstract class NestorApi {
         javaOut: 'Foo.java', copyrightHeader: './copyright_header.txt');
     final JavaGeneratorAdapter javaGeneratorAdapter = JavaGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
-    javaGeneratorAdapter.generate(buffer, options, root, FileType.na);
+    javaGeneratorAdapter.generate(buffer,
+        InternalPigeonOptions.fromPigeonOptions(options), root, FileType.na);
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
   test('Objc header generator copyright flag', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
-    const PigeonOptions options =
-        PigeonOptions(copyrightHeader: './copyright_header.txt');
+    const PigeonOptions options = PigeonOptions(
+      copyrightHeader: './copyright_header.txt',
+      objcHeaderOut: '',
+      objcSourceOut: '',
+    );
     final ObjcGeneratorAdapter objcHeaderGeneratorAdapter =
         ObjcGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
-    objcHeaderGeneratorAdapter.generate(buffer, options, root, FileType.header);
+    objcHeaderGeneratorAdapter.generate(
+        buffer,
+        InternalPigeonOptions.fromPigeonOptions(options),
+        root,
+        FileType.header);
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
   test('Objc source generator copyright flag', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
-    const PigeonOptions options =
-        PigeonOptions(copyrightHeader: './copyright_header.txt');
+    const PigeonOptions options = PigeonOptions(
+      copyrightHeader: './copyright_header.txt',
+      objcHeaderOut: '',
+      objcSourceOut: '',
+    );
     final ObjcGeneratorAdapter objcSourceGeneratorAdapter =
         ObjcGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
-    objcSourceGeneratorAdapter.generate(buffer, options, root, FileType.source);
+    objcSourceGeneratorAdapter.generate(
+        buffer,
+        InternalPigeonOptions.fromPigeonOptions(options),
+        root,
+        FileType.source);
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
@@ -455,28 +513,42 @@ abstract class NestorApi {
         swiftOut: 'Foo.swift', copyrightHeader: './copyright_header.txt');
     final SwiftGeneratorAdapter swiftGeneratorAdapter = SwiftGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
-    swiftGeneratorAdapter.generate(buffer, options, root, FileType.na);
+    swiftGeneratorAdapter.generate(buffer,
+        InternalPigeonOptions.fromPigeonOptions(options), root, FileType.na);
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
   test('C++ header generator copyright flag', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
     const PigeonOptions options = PigeonOptions(
-        cppHeaderOut: 'Foo.h', copyrightHeader: './copyright_header.txt');
+        cppSourceOut: '',
+        cppHeaderOut: 'Foo.h',
+        copyrightHeader: './copyright_header.txt');
     final CppGeneratorAdapter cppHeaderGeneratorAdapter = CppGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
-    cppHeaderGeneratorAdapter.generate(buffer, options, root, FileType.header);
+    cppHeaderGeneratorAdapter.generate(
+        buffer,
+        InternalPigeonOptions.fromPigeonOptions(options),
+        root,
+        FileType.header);
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
   test('C++ source generator copyright flag', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
-    const PigeonOptions options =
-        PigeonOptions(copyrightHeader: './copyright_header.txt');
+    const PigeonOptions options = PigeonOptions(
+      copyrightHeader: './copyright_header.txt',
+      cppHeaderOut: '',
+      cppSourceOut: '',
+    );
     final CppGeneratorAdapter cppSourceGeneratorAdapter =
         CppGeneratorAdapter(fileTypeList: <FileType>[FileType.source]);
     final StringBuffer buffer = StringBuffer();
-    cppSourceGeneratorAdapter.generate(buffer, options, root, FileType.source);
+    cppSourceGeneratorAdapter.generate(
+        buffer,
+        InternalPigeonOptions.fromPigeonOptions(options),
+        root,
+        FileType.source);
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
@@ -729,25 +801,6 @@ abstract class Api {
     expect(field.type.typeArguments.length, 1);
     expect(field.type.typeArguments[0].baseName, 'List');
     expect(field.type.typeArguments[0].typeArguments[0].baseName, 'int');
-  });
-
-  test('error nonnull type argument', () {
-    const String code = '''
-class Foo {
-  List<int> list;
-}
-
-@HostApi()
-abstract class Api {
-  void doit(Foo foo);
-}
-''';
-    final ParseResults parseResult = parseSource(code);
-    expect(parseResult.errors.length, equals(1));
-    expect(parseResult.errors[0].message,
-        contains('Generic type parameters must be nullable'));
-    expect(parseResult.errors[0].message, contains('"list"'));
-    expect(parseResult.errors[0].lineNumber, 2);
   });
 
   test('enums argument host', () {
@@ -1030,7 +1083,11 @@ abstract class Api {
     final DartTestGeneratorAdapter dartTestGeneratorAdapter =
         DartTestGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
-    dartTestGeneratorAdapter.generate(buffer, options, root, FileType.source);
+    dartTestGeneratorAdapter.generate(
+        buffer,
+        InternalPigeonOptions.fromPigeonOptions(options),
+        root,
+        FileType.source);
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
@@ -1123,28 +1180,6 @@ abstract class Api {
     expect(results.errors.length, 0);
   });
 
-  test('Enum key not supported', () {
-    const String code = '''
-enum MessageKey {
-  title,
-  subtitle,
-  description,
-}
-
-class Message {
-  int? id;
-  Map<MessageKey?, String?>? additionalProperties;
-}
-
-@HostApi()
-abstract class HostApiBridge {
-  void sendMessage(Message message);
-}
-''';
-    final ParseResults results = parseSource(code);
-    expect(results.errors.length, 1);
-  });
-
   test('Export unreferenced enums', () {
     const String code = '''
 enum MessageKey {
@@ -1170,7 +1205,7 @@ abstract class HostApiBridge {
 
   test('@ConfigurePigeon JavaOptions.copyrightHeader', () {
     const String code = '''
-@ConfigurePigeon(PigeonOptions(
+@ConfigurePigeon(InternalPigeonOptions(
   javaOptions: JavaOptions(copyrightHeader: <String>['A', 'Header']),
 ))
 class Message {
@@ -1211,6 +1246,36 @@ class Message {
     final ParseResults results = parseSource(code);
     final PigeonOptions options = PigeonOptions.fromMap(results.pigeonOptions!);
     expect(options.objcOptions!.copyrightHeader, <String>['A', 'Header']);
+  });
+
+  test('@ConfigurePigeon ObjcOptions.headerIncludePath', () {
+    const String code = '''
+@ConfigurePigeon(PigeonOptions(
+  objcOptions: ObjcOptions(headerIncludePath: 'Header.path'),
+))
+class Message {
+  int? id;
+}
+''';
+
+    final ParseResults results = parseSource(code);
+    final PigeonOptions options = PigeonOptions.fromMap(results.pigeonOptions!);
+    expect(options.objcOptions?.headerIncludePath, 'Header.path');
+  });
+
+  test('@ConfigurePigeon CppOptions.headerIncludePath', () {
+    const String code = '''
+@ConfigurePigeon(PigeonOptions(
+  cppOptions: CppOptions(headerIncludePath: 'Header.path'),
+))
+class Message {
+  int? id;
+}
+''';
+
+    final ParseResults results = parseSource(code);
+    final PigeonOptions options = PigeonOptions.fromMap(results.pigeonOptions!);
+    expect(options.cppOptions?.headerIncludePath, 'Header.path');
   });
 
   test('return nullable', () {
@@ -1562,6 +1627,88 @@ abstract class MyClass {
       expect(
         parseResult.errors[0].message,
         contains('Attached fields must not be nullable: MyClass?'),
+      );
+    });
+
+    test('callback methods with non-null return types must be non-null', () {
+      const String code = '''
+@ProxyApi()
+abstract class MyClass {
+  late String Function()? aCallbackMethod;
+}
+''';
+      final ParseResults parseResult = parseSource(code);
+      expect(parseResult.errors, isNotEmpty);
+      expect(
+        parseResult.errors[0].message,
+        contains(
+          'Callback methods that return a non-null value must be non-null: aCallbackMethod.',
+        ),
+      );
+    });
+  });
+
+  group('event channel validation', () {
+    test('methods cannot contain parameters', () {
+      const String code = '''
+@EventChannelApi()
+abstract class EventChannelApi {
+  int streamInts(int event);
+}
+''';
+      final ParseResults parseResult = parseSource(code);
+      expect(parseResult.errors.length, equals(1));
+      expect(
+        parseResult.errors.single.message,
+        contains(
+            'event channel methods must not be contain parameters, in method "streamInts" in API: "EventChannelApi"'),
+      );
+    });
+  });
+
+  group('sealed inheritance validation', () {
+    test('super class must be sealed', () {
+      const String code = '''
+class DataClass {}
+class ChildClass extends DataClass {
+  ChildClass(this.input);
+  int input;
+}
+
+@EventChannelApi()
+abstract class events {
+  void aMethod(ChildClass param);
+}
+''';
+      final ParseResults parseResult = parseSource(code);
+      expect(parseResult.errors, isNotEmpty);
+      expect(
+        parseResult.errors[0].message,
+        contains('Child class: "ChildClass" must extend a sealed class.'),
+      );
+    });
+
+    test('super class must be sealed', () {
+      const String code = '''
+sealed class DataClass {
+  DataClass(this.input);
+  int input;
+}
+class ChildClass extends DataClass {
+  ChildClass(this.input);
+  int input;
+}
+
+@EventChannelApi()
+abstract class events {
+  void aMethod(ChildClass param);
+}
+''';
+      final ParseResults parseResult = parseSource(code);
+      expect(parseResult.errors, isNotEmpty);
+      expect(
+        parseResult.errors[0].message,
+        contains('Sealed class: "DataClass" must not contain fields.'),
       );
     });
   });

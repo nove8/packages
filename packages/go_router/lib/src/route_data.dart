@@ -63,6 +63,11 @@ abstract class GoRouteData extends RouteData {
   /// Corresponds to [GoRoute.redirect].
   FutureOr<String?> redirect(BuildContext context, GoRouterState state) => null;
 
+  /// Called when this route is removed from GoRouter's route history.
+  ///
+  /// Corresponds to [GoRoute.onExit].
+  FutureOr<bool> onExit(BuildContext context, GoRouterState state) => true;
+
   /// A helper function used by generated code.
   ///
   /// Should not be used directly.
@@ -81,6 +86,7 @@ abstract class GoRouteData extends RouteData {
   static GoRoute $route<T extends GoRouteData>({
     required String path,
     String? name,
+    bool caseSensitive = true,
     required T Function(GoRouterState) factory,
     GlobalKey<NavigatorState>? parentNavigatorKey,
     List<RouteBase> routes = const <RouteBase>[],
@@ -106,14 +112,19 @@ abstract class GoRouteData extends RouteData {
     FutureOr<String?> redirect(BuildContext context, GoRouterState state) =>
         factoryImpl(state).redirect(context, state);
 
+    FutureOr<bool> onExit(BuildContext context, GoRouterState state) =>
+        factoryImpl(state).onExit(context, state);
+
     return GoRoute(
       path: path,
       name: name,
+      caseSensitive: caseSensitive,
       builder: builder,
       pageBuilder: pageBuilder,
       redirect: redirect,
       routes: routes,
       parentNavigatorKey: parentNavigatorKey,
+      onExit: onExit,
     );
   }
 
@@ -150,6 +161,14 @@ abstract class ShellRouteData extends RouteData {
         'One of `builder` or `pageBuilder` must be implemented.',
       );
 
+  /// An optional redirect function for this route.
+  ///
+  /// Subclasses must override one of [build], [buildPage], or
+  /// [redirect].
+  ///
+  /// Corresponds to [GoRoute.redirect].
+  FutureOr<String?> redirect(BuildContext context, GoRouterState state) => null;
+
   /// A helper function used by generated code.
   ///
   /// Should not be used directly.
@@ -164,6 +183,9 @@ abstract class ShellRouteData extends RouteData {
     T factoryImpl(GoRouterState state) {
       return (_stateObjectExpando[state] ??= factory(state)) as T;
     }
+
+    FutureOr<String?> redirect(BuildContext context, GoRouterState state) =>
+        factoryImpl(state).redirect(context, state);
 
     Widget builder(
       BuildContext context,
@@ -195,6 +217,7 @@ abstract class ShellRouteData extends RouteData {
       navigatorKey: navigatorKey,
       observers: observers,
       restorationScopeId: restorationScopeId,
+      redirect: redirect,
     );
   }
 
@@ -211,6 +234,14 @@ abstract class ShellRouteData extends RouteData {
 abstract class StatefulShellRouteData extends RouteData {
   /// Default const constructor
   const StatefulShellRouteData();
+
+  /// An optional redirect function for this route.
+  ///
+  /// Subclasses must override one of [build], [buildPage], or
+  /// [redirect].
+  ///
+  /// Corresponds to [GoRoute.redirect].
+  FutureOr<String?> redirect(BuildContext context, GoRouterState state) => null;
 
   /// [pageBuilder] is used to build the page
   Page<void> pageBuilder(
@@ -266,6 +297,9 @@ abstract class StatefulShellRouteData extends RouteData {
           navigationShell,
         );
 
+    FutureOr<String?> redirect(BuildContext context, GoRouterState state) =>
+        factoryImpl(state).redirect(context, state);
+
     if (navigatorContainerBuilder != null) {
       return StatefulShellRoute(
         branches: branches,
@@ -274,6 +308,7 @@ abstract class StatefulShellRouteData extends RouteData {
         navigatorContainerBuilder: navigatorContainerBuilder,
         parentNavigatorKey: parentNavigatorKey,
         restorationScopeId: restorationScopeId,
+        redirect: redirect,
       );
     }
     return StatefulShellRoute.indexedStack(
@@ -282,6 +317,7 @@ abstract class StatefulShellRouteData extends RouteData {
       pageBuilder: pageBuilder,
       parentNavigatorKey: parentNavigatorKey,
       restorationScopeId: restorationScopeId,
+      redirect: redirect,
     );
   }
 
@@ -308,6 +344,7 @@ abstract class StatefulShellBranchData {
     List<NavigatorObserver>? observers,
     String? initialLocation,
     String? restorationScopeId,
+    bool preload = false,
   }) {
     return StatefulShellBranch(
       routes: routes,
@@ -315,6 +352,7 @@ abstract class StatefulShellBranchData {
       observers: observers,
       initialLocation: initialLocation,
       restorationScopeId: restorationScopeId,
+      preload: preload,
     );
   }
 }
@@ -333,6 +371,7 @@ class TypedGoRoute<T extends GoRouteData> extends TypedRoute<T> {
     required this.path,
     this.name,
     this.routes = const <TypedRoute<RouteData>>[],
+    this.caseSensitive = true,
   });
 
   /// The path that corresponds to this route.
@@ -354,6 +393,17 @@ class TypedGoRoute<T extends GoRouteData> extends TypedRoute<T> {
   ///
   /// See [RouteBase.routes].
   final List<TypedRoute<RouteData>> routes;
+
+  /// Determines whether the route matching is case sensitive.
+  ///
+  /// When `true`, the path must match the specified case. For example,
+  /// a route with `path: '/family/:fid'` will not match `/FaMiLy/f2`.
+  ///
+  /// When `false`, the path matching is case insensitive.  The route
+  /// with `path: '/family/:fid'` will match `/FaMiLy/f2`.
+  ///
+  /// Defaults to `true`.
+  final bool caseSensitive;
 }
 
 /// A superclass for each typed shell route descendant

@@ -23,6 +23,20 @@ typedef ExpectConfigValueFn = void Function(String name, Object? matcher);
 /// Creates a [ExpectConfigValueFn] for the `config` [JSObject].
 ExpectConfigValueFn createExpectConfigValue(JSObject config) {
   return (String name, Object? matcher) {
+    if (matcher is String) {
+      matcher = matcher.toJS;
+    } else if (matcher is bool) {
+      matcher = matcher.toJS;
+    } else if (matcher is List) {
+      final List<Object?> old = matcher;
+      matcher = isA<JSAny?>().having(
+          (JSAny? p0) => (p0 as JSArray<JSAny>?)
+              ?.toDart
+              .map((JSAny? e) => e.dartify())
+              .toList(),
+          'Array with matching values',
+          old);
+    }
     expect(config[name], matcher, reason: name);
   };
 }
@@ -76,17 +90,29 @@ void setMockTokenResponse(TokenClient client, [String? authToken]) {
   client.setMockTokenResponse(authToken?.toJS);
 }
 
-/// Allows calling a `setMockCredentialResponse` method (set by mock-gis.js)
+/// Allows calling `setMockCredentialResponse` and `setMockMomentNotification`
+/// methods (set by mock-gis.js).
 extension on GoogleAccountsId {
   external void setMockCredentialResponse(
     JSString credential,
     JSString select_by, //ignore: non_constant_identifier_names
+  );
+
+  external void setMockMomentNotification(
+    JSString momentType,
+    JSString reason,
   );
 }
 
 /// Sets a mock credential response in `google.accounts.id`.
 void setMockCredentialResponse([String value = 'default_value']) {
   _getGoogleAccountsId().setMockCredentialResponse(value.toJS, 'auto'.toJS);
+}
+
+/// Sets a mock moment notification in `google.accounts.id`.
+void setMockMomentNotification(String momentType, String reason) {
+  _getGoogleAccountsId()
+      .setMockMomentNotification(momentType.toJS, reason.toJS);
 }
 
 GoogleAccountsId _getGoogleAccountsId() {

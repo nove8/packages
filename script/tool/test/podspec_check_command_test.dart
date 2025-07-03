@@ -4,10 +4,10 @@
 
 import 'package:args/command_runner.dart';
 import 'package:file/file.dart';
-import 'package:file/memory.dart';
 import 'package:flutter_plugin_tools/src/common/core.dart';
 import 'package:flutter_plugin_tools/src/common/plugin_utils.dart';
 import 'package:flutter_plugin_tools/src/podspec_check_command.dart';
+import 'package:git/git.dart';
 import 'package:platform/platform.dart';
 import 'package:test/test.dart';
 
@@ -75,22 +75,21 @@ end
 
 void main() {
   group('PodspecCheckCommand', () {
-    FileSystem fileSystem;
     late Directory packagesDir;
     late CommandRunner<void> runner;
     late MockPlatform mockPlatform;
     late RecordingProcessRunner processRunner;
 
     setUp(() {
-      fileSystem = MemoryFileSystem();
-      packagesDir = createPackagesDirectory(fileSystem: fileSystem);
-
       mockPlatform = MockPlatform(isMacOS: true);
-      processRunner = RecordingProcessRunner();
+      final GitDir gitDir;
+      (:packagesDir, :processRunner, gitProcessRunner: _, :gitDir) =
+          configureBaseCommandMocks(platform: mockPlatform);
       final PodspecCheckCommand command = PodspecCheckCommand(
         packagesDir,
         processRunner: processRunner,
         platform: mockPlatform,
+        gitDir: gitDir,
       );
 
       runner =
@@ -156,7 +155,6 @@ void main() {
                     .path,
                 '--configuration=Debug',
                 '--skip-tests',
-                '--use-modular-headers',
                 '--use-libraries'
               ],
               packagesDir.path),
@@ -171,7 +169,6 @@ void main() {
                     .path,
                 '--configuration=Debug',
                 '--skip-tests',
-                '--use-modular-headers',
               ],
               packagesDir.path),
         ]),
@@ -212,7 +209,6 @@ void main() {
                     .path,
                 '--configuration=Debug',
                 '--skip-tests',
-                '--use-modular-headers',
                 '--use-libraries'
               ],
               packagesDir.path),
@@ -227,7 +223,6 @@ void main() {
                     .path,
                 '--configuration=Debug',
                 '--skip-tests',
-                '--use-modular-headers',
               ],
               packagesDir.path),
         ]),
@@ -319,8 +314,14 @@ void main() {
 
     test('fails if an iOS Swift plugin is missing the search paths workaround',
         () async {
-      final RepositoryPackage plugin = createFakePlugin('plugin1', packagesDir,
-          extraFiles: <String>['ios/Classes/SomeSwift.swift']);
+      final RepositoryPackage plugin = createFakePlugin(
+        'plugin1',
+        packagesDir,
+        extraFiles: <String>[
+          'ios/Classes/SomeSwift.swift',
+          'ios/plugin1/Package.swift',
+        ],
+      );
       _writeFakePodspec(plugin, 'ios');
 
       Error? commandError;
@@ -374,6 +375,74 @@ void main() {
               contains('The following packages had errors:'),
               contains('plugin1:\n'
                   '    plugin1.podspec')
+            ],
+          ));
+    });
+
+    test('does not require the search paths workaround for iOS Package.swift',
+        () async {
+      final RepositoryPackage plugin = createFakePlugin(
+        'plugin1',
+        packagesDir,
+        extraFiles: <String>['ios/plugin1/Package.swift'],
+      );
+      _writeFakePodspec(plugin, 'ios');
+
+      final List<String> output =
+          await runCapturingPrint(runner, <String>['podspec-check']);
+
+      expect(
+          output,
+          containsAllInOrder(
+            <Matcher>[
+              contains('Ran for 1 package(s)'),
+            ],
+          ));
+    });
+
+    test('does not require the search paths workaround for Swift tests',
+        () async {
+      final RepositoryPackage plugin = createFakePlugin(
+        'plugin1',
+        packagesDir,
+        extraFiles: <String>[
+          'darwin/Tests/SharedTest.swift',
+          'example/ios/RunnerTests/UnitTest.swift',
+          'example/ios/RunnerUITests/UITest.swift',
+        ],
+      );
+      _writeFakePodspec(plugin, 'ios');
+
+      final List<String> output =
+          await runCapturingPrint(runner, <String>['podspec-check']);
+
+      expect(
+          output,
+          containsAllInOrder(
+            <Matcher>[
+              contains('Ran for 1 package(s)'),
+            ],
+          ));
+    });
+
+    test(
+        'does not require the search paths workaround for darwin Package.swift',
+        () async {
+      final RepositoryPackage plugin = createFakePlugin(
+        'plugin1',
+        packagesDir,
+        extraFiles: <String>['darwin/plugin1/Package.swift'],
+      );
+      _writeFakePodspec(plugin, 'darwin');
+
+      final List<String> output =
+          await runCapturingPrint(runner, <String>['podspec-check']);
+
+      expect(
+          output,
+          containsAllInOrder(
+            <Matcher>[
+              contains('Ran for 1 package(s)'),
             ],
           ));
     });
@@ -521,6 +590,50 @@ void main() {
         },
       );
       _writeFakePodspec(plugin, 'ios', includePrivacyManifest: true);
+
+      final List<String> output =
+          await runCapturingPrint(runner, <String>['podspec-check']);
+
+      expect(
+          output,
+          containsAllInOrder(
+            <Matcher>[contains('Ran for 1 package(s)')],
+          ));
+    });
+
+    test('fails when a macOS plugin is missing a privacy manifest', () async {
+      final RepositoryPackage plugin = createFakePlugin(
+        'plugin1',
+        packagesDir,
+        platformSupport: <String, PlatformDetails>{
+          Platform.macOS: const PlatformDetails(PlatformSupport.inline),
+        },
+      );
+      _writeFakePodspec(plugin, 'macos');
+
+      Error? commandError;
+      final List<String> output = await runCapturingPrint(
+          runner, <String>['podspec-check'], errorHandler: (Error e) {
+        commandError = e;
+      });
+
+      expect(commandError, isA<ToolExit>());
+      expect(
+          output,
+          containsAllInOrder(
+            <Matcher>[contains('No PrivacyInfo.xcprivacy file specified.')],
+          ));
+    });
+
+    test('passes when a macOS plugin has a privacy manifest', () async {
+      final RepositoryPackage plugin = createFakePlugin(
+        'plugin1',
+        packagesDir,
+        platformSupport: <String, PlatformDetails>{
+          Platform.macOS: const PlatformDetails(PlatformSupport.inline),
+        },
+      );
+      _writeFakePodspec(plugin, 'macos', includePrivacyManifest: true);
 
       final List<String> output =
           await runCapturingPrint(runner, <String>['podspec-check']);

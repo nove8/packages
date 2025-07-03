@@ -1,3 +1,48 @@
+## 2.12.2
+
+* Fixes memory leak by disposing stream subscriptions in `GoogleMapController`.
+* Updates README to indicate that Andoid SDK <21 is no longer supported.
+
+## 2.12.1
+
+* Fixes typo in README.
+
+## 2.12.0
+
+* Adds support for animating the camera with a duration.
+
+## 2.11.0
+
+* Adds support for ground overlays.
+* Updates minimum supported SDK version to Flutter 3.27/Dart 3.6.
+
+## 2.10.1
+
+* Updates READMEs and API docs.
+* Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
+
+## 2.10.0
+
+* Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
+* Fixes detection of WebAssembly support on package site.
+
+## 2.9.0
+
+* Adds clustering support.
+
+## 2.8.0
+
+* Adds support for heatmap layers.
+
+## 2.7.1
+
+* Updates the example app to use TLHC mode, per current package guidance.
+
+## 2.7.0
+
+* Adds support for BitmapDescriptor classes `AssetMapBitmap` and `BytesMapBitmap`.
+* Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
+
 ## 2.6.1
 
 * Updates the minimum version of the iOS implementation package to a version

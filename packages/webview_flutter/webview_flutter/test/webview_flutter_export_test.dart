@@ -13,6 +13,8 @@ void main() {
       'ensure webview_flutter.dart exports classes from platform interface',
       () {
         main_file.HttpAuthRequest;
+        main_file.HttpResponseError;
+        main_file.HttpResponseErrorCallback;
         main_file.JavaScriptConsoleMessage;
         main_file.JavaScriptLogLevel;
         main_file.JavaScriptMessage;
@@ -28,12 +30,15 @@ void main() {
         main_file.PlatformWebViewPermissionRequest;
         main_file.PlatformWebViewWidgetCreationParams;
         main_file.ProgressCallback;
+        main_file.WebViewOverScrollMode;
         main_file.WebViewPermissionResourceType;
         main_file.WebResourceError;
         main_file.WebResourceErrorCallback;
         main_file.WebViewCookie;
         main_file.WebViewCredential;
         main_file.WebResourceErrorType;
+        main_file.WebResourceRequest;
+        main_file.WebResourceResponse;
         main_file.UrlChange;
       },
     );

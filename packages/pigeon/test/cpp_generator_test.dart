@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'package:pigeon/ast.dart';
-import 'package:pigeon/cpp_generator.dart';
-import 'package:pigeon/generator_tools.dart';
-import 'package:pigeon/pigeon.dart' show Error;
+import 'package:pigeon/src/ast.dart';
+import 'package:pigeon/src/cpp/cpp_generator.dart';
+import 'package:pigeon/src/generator_tools.dart';
+import 'package:pigeon/src/pigeon_lib.dart' show Error;
 import 'package:test/test.dart';
 
 const String DEFAULT_PACKAGE_NAME = 'test_package';
@@ -66,10 +66,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(generatorOptions, root, sink,
           dartPackageName: DEFAULT_PACKAGE_NAME);
@@ -82,10 +83,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(generatorOptions, root, sink,
           dartPackageName: DEFAULT_PACKAGE_NAME);
@@ -101,6 +103,10 @@ void main() {
   });
 
   test('naming follows style', () {
+    final Enum anEnum = Enum(name: 'AnEnum', members: <EnumMember>[
+      EnumMember(name: 'one'),
+      EnumMember(name: 'fortyTwo'),
+    ]);
     final Root root = Root(apis: <Api>[
       AstHostApi(name: 'Api', methods: <Method>[
         Method(
@@ -137,16 +143,27 @@ void main() {
               baseName: 'bool',
               isNullable: false,
             ),
-            name: 'outputField')
+            name: 'outputField'),
+        NamedType(
+          type: TypeDeclaration(
+            baseName: anEnum.name,
+            isNullable: false,
+            associatedEnum: anEnum,
+          ),
+          name: 'code',
+        )
       ])
-    ], enums: <Enum>[]);
+    ], enums: <Enum>[
+      anEnum
+    ]);
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(generatorOptions, root, sink,
           dartPackageName: DEFAULT_PACKAGE_NAME);
@@ -161,14 +178,18 @@ void main() {
       // Instance variables should be adjusted.
       expect(code, contains('bool input_field_'));
       expect(code, contains('bool output_field_'));
+      // Enum values should be adjusted.
+      expect(code, contains('kOne'));
+      expect(code, contains('kFortyTwo'));
     }
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(generatorOptions, root, sink,
           dartPackageName: DEFAULT_PACKAGE_NAME);
@@ -200,10 +221,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -232,30 +254,37 @@ void main() {
   });
 
   test('Error field is private with public accessors', () {
-    final Root root = Root(apis: <Api>[
-      AstHostApi(name: 'Api', methods: <Method>[
-        Method(
-          name: 'doSomething',
-          location: ApiLocation.host,
-          parameters: <Parameter>[
-            Parameter(
-                type: const TypeDeclaration(
-                  baseName: 'int',
-                  isNullable: false,
-                ),
-                name: 'someInput')
-          ],
-          returnType: const TypeDeclaration(baseName: 'int', isNullable: false),
-        )
-      ])
-    ], classes: <Class>[], enums: <Enum>[]);
+    final Root root = Root(
+      apis: <Api>[
+        AstHostApi(name: 'Api', methods: <Method>[
+          Method(
+            name: 'doSomething',
+            location: ApiLocation.host,
+            parameters: <Parameter>[
+              Parameter(
+                  type: const TypeDeclaration(
+                    baseName: 'int',
+                    isNullable: false,
+                  ),
+                  name: 'someInput')
+            ],
+            returnType:
+                const TypeDeclaration(baseName: 'int', isNullable: false),
+          )
+        ])
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsHostApi: true,
+    );
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(generatorOptions, root, sink,
           dartPackageName: DEFAULT_PACKAGE_NAME);
@@ -318,10 +347,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -336,10 +366,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -374,10 +405,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -400,10 +432,13 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(headerIncludePath: 'a_header.h'),
+        languageOptions: const InternalCppOptions(
+            headerIncludePath: 'a_header.h',
+            cppHeaderOut: '',
+            cppSourceOut: ''),
       );
       generator.generate(
         generatorOptions,
@@ -448,10 +483,14 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(namespace: 'foo'),
+        languageOptions: const InternalCppOptions(
+            namespace: 'foo',
+            headerIncludePath: '',
+            cppHeaderOut: '',
+            cppSourceOut: ''),
       );
       generator.generate(
         generatorOptions,
@@ -466,10 +505,14 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(namespace: 'foo'),
+        languageOptions: const InternalCppOptions(
+            namespace: 'foo',
+            headerIncludePath: '',
+            cppHeaderOut: '',
+            cppSourceOut: ''),
       );
       generator.generate(
         generatorOptions,
@@ -541,10 +584,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -594,10 +638,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -651,8 +696,7 @@ void main() {
       expect(
           code,
           contains(
-              'nullable_nested_ ? EncodableValue(nullable_nested_->ToEncodableList()) '
-              ': EncodableValue()'));
+              'nullable_nested_ ? CustomEncodableValue(*nullable_nested_) : EncodableValue())'));
 
       // Serialization should use push_back, not initializer lists, to avoid
       // copies.
@@ -723,10 +767,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -767,10 +812,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -805,13 +851,15 @@ void main() {
               'non_nullable_nested_ = std::make_unique<Nested>(value_arg);'));
       // Serialization uses the value directly.
       expect(code, contains('EncodableValue(non_nullable_bool_)'));
-      expect(code, contains('non_nullable_nested_->ToEncodableList()'));
+      expect(code, contains('CustomEncodableValue(*non_nullable_nested_)'));
 
       // Serialization should use push_back, not initializer lists, to avoid
       // copies.
       expect(code, contains('list.reserve(4)'));
       expect(
-          code, contains('list.push_back(EncodableValue(non_nullable_bool_))'));
+          code,
+          contains(
+              'list.push_back(CustomEncodableValue(*non_nullable_nested_))'));
     }
   });
 
@@ -903,10 +951,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -1026,10 +1075,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -1121,10 +1171,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -1147,10 +1198,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -1179,21 +1231,19 @@ void main() {
           code,
           contains(
               'const auto* a_map_arg = std::get_if<EncodableMap>(&encodable_a_map_arg);'));
-      // Ints are complicated since there are two possible pointer types, but
-      // the parameter always needs an int64_t*.
       expect(
           code,
           contains(
-              'const int64_t an_int_arg_value = encodable_an_int_arg.IsNull() ? 0 : encodable_an_int_arg.LongValue();'));
+              'const auto* a_bool_arg = std::get_if<bool>(&encodable_a_bool_arg);'));
       expect(
           code,
           contains(
-              'const auto* an_int_arg = encodable_an_int_arg.IsNull() ? nullptr : &an_int_arg_value;'));
+              'const auto* an_int_arg = std::get_if<int64_t>(&encodable_an_int_arg);'));
       // Custom class types require an extra layer of extraction.
       expect(
           code,
           contains(
-              'const auto* an_object_arg = &(std::any_cast<const ParameterObject&>(std::get<CustomEncodableValue>(encodable_an_object_arg)));'));
+              'const auto* an_object_arg = encodable_an_object_arg.IsNull() ? nullptr : &(std::any_cast<const ParameterObject&>(std::get<CustomEncodableValue>(encodable_an_object_arg)));'));
       // "Object" requires no extraction at all since it has to use
       // EncodableValue directly.
       expect(
@@ -1277,10 +1327,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -1303,10 +1354,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -1431,10 +1483,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -1472,10 +1525,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -1591,10 +1645,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.header,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -1625,10 +1680,11 @@ void main() {
     {
       final StringBuffer sink = StringBuffer();
       const CppGenerator generator = CppGenerator();
-      final OutputFileOptions<CppOptions> generatorOptions =
-          OutputFileOptions<CppOptions>(
+      final OutputFileOptions<InternalCppOptions> generatorOptions =
+          OutputFileOptions<InternalCppOptions>(
         fileType: FileType.source,
-        languageOptions: const CppOptions(),
+        languageOptions: const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
       );
       generator.generate(
         generatorOptions,
@@ -1637,13 +1693,13 @@ void main() {
         dartPackageName: DEFAULT_PACKAGE_NAME,
       );
       final String code = sink.toString();
-      // Standard types are wrapped an EncodableValues.
+      // Standard types are wrapped in EncodableValues.
       expect(code, contains('EncodableValue(a_bool_arg)'));
       expect(code, contains('EncodableValue(an_int_arg)'));
       expect(code, contains('EncodableValue(a_string_arg)'));
       expect(code, contains('EncodableValue(a_list_arg)'));
       expect(code, contains('EncodableValue(a_map_arg)'));
-      // Class types use ToEncodableList.
+      // Class types are wrapped in CustomEncodableValues.
       expect(code, contains('CustomEncodableValue(an_object_arg)'));
     }
   });
@@ -1669,10 +1725,11 @@ void main() {
 
     final StringBuffer sink = StringBuffer();
     const CppGenerator generator = CppGenerator();
-    final OutputFileOptions<CppOptions> generatorOptions =
-        OutputFileOptions<CppOptions>(
+    final OutputFileOptions<InternalCppOptions> generatorOptions =
+        OutputFileOptions<InternalCppOptions>(
       fileType: FileType.source,
-      languageOptions: const CppOptions(),
+      languageOptions: const InternalCppOptions(
+          cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
     );
     generator.generate(
       generatorOptions,
@@ -1716,7 +1773,10 @@ void main() {
         ])
       ],
     );
-    final List<Error> errors = validateCpp(const CppOptions(), root);
+    final List<Error> errors = validateCpp(
+        const InternalCppOptions(
+            cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
+        root);
     expect(errors.length, 1);
   });
 
@@ -1795,10 +1855,14 @@ void main() {
     );
     final StringBuffer sink = StringBuffer();
     const CppGenerator generator = CppGenerator();
-    final OutputFileOptions<CppOptions> generatorOptions =
-        OutputFileOptions<CppOptions>(
+    final OutputFileOptions<InternalCppOptions> generatorOptions =
+        OutputFileOptions<InternalCppOptions>(
       fileType: FileType.header,
-      languageOptions: const CppOptions(headerIncludePath: 'foo'),
+      languageOptions: const InternalCppOptions(
+        headerIncludePath: 'foo',
+        cppHeaderOut: '',
+        cppSourceOut: '',
+      ),
     );
     generator.generate(
       generatorOptions,
@@ -1813,50 +1877,7 @@ void main() {
     expect(code, contains('// ///'));
   });
 
-  test("doesn't create codecs if no custom datatypes", () {
-    final Root root = Root(
-      apis: <Api>[
-        AstFlutterApi(
-          name: 'Api',
-          methods: <Method>[
-            Method(
-              name: 'method',
-              location: ApiLocation.flutter,
-              returnType: const TypeDeclaration.voidDeclaration(),
-              parameters: <Parameter>[
-                Parameter(
-                  name: 'field',
-                  type: const TypeDeclaration(
-                    baseName: 'int',
-                    isNullable: true,
-                  ),
-                ),
-              ],
-            )
-          ],
-        )
-      ],
-      classes: <Class>[],
-      enums: <Enum>[],
-    );
-    final StringBuffer sink = StringBuffer();
-    const CppGenerator generator = CppGenerator();
-    final OutputFileOptions<CppOptions> generatorOptions =
-        OutputFileOptions<CppOptions>(
-      fileType: FileType.header,
-      languageOptions: const CppOptions(),
-    );
-    generator.generate(
-      generatorOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
-    final String code = sink.toString();
-    expect(code, isNot(contains(' : public flutter::StandardCodecSerializer')));
-  });
-
-  test('creates custom codecs if custom datatypes present', () {
+  test('creates custom codecs', () {
     final Root root = Root(apis: <Api>[
       AstFlutterApi(name: 'Api', methods: <Method>[
         Method(
@@ -1899,10 +1920,11 @@ void main() {
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
     const CppGenerator generator = CppGenerator();
-    final OutputFileOptions<CppOptions> generatorOptions =
-        OutputFileOptions<CppOptions>(
+    final OutputFileOptions<InternalCppOptions> generatorOptions =
+        OutputFileOptions<InternalCppOptions>(
       fileType: FileType.header,
-      languageOptions: const CppOptions(),
+      languageOptions: const InternalCppOptions(
+          cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
     );
     generator.generate(
       generatorOptions,
@@ -1981,10 +2003,11 @@ void main() {
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
     const CppGenerator generator = CppGenerator();
-    final OutputFileOptions<CppOptions> generatorOptions =
-        OutputFileOptions<CppOptions>(
+    final OutputFileOptions<InternalCppOptions> generatorOptions =
+        OutputFileOptions<InternalCppOptions>(
       fileType: FileType.source,
-      languageOptions: const CppOptions(),
+      languageOptions: const InternalCppOptions(
+          cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
     );
     generator.generate(
       generatorOptions,
@@ -2050,10 +2073,11 @@ void main() {
     ], classes: <Class>[], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
     const CppGenerator generator = CppGenerator();
-    final OutputFileOptions<CppOptions> generatorOptions =
-        OutputFileOptions<CppOptions>(
+    final OutputFileOptions<InternalCppOptions> generatorOptions =
+        OutputFileOptions<InternalCppOptions>(
       fileType: FileType.source,
-      languageOptions: const CppOptions(),
+      languageOptions: const InternalCppOptions(
+          cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
     );
     generator.generate(
       generatorOptions,
@@ -2097,13 +2121,15 @@ void main() {
       ],
       classes: <Class>[],
       enums: <Enum>[],
+      containsFlutterApi: true,
     );
     final StringBuffer sink = StringBuffer();
     const CppGenerator generator = CppGenerator();
-    final OutputFileOptions<CppOptions> generatorOptions =
-        OutputFileOptions<CppOptions>(
+    final OutputFileOptions<InternalCppOptions> generatorOptions =
+        OutputFileOptions<InternalCppOptions>(
       fileType: FileType.source,
-      languageOptions: const CppOptions(),
+      languageOptions: const InternalCppOptions(
+          cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
     );
     generator.generate(
       generatorOptions,
@@ -2147,10 +2173,11 @@ void main() {
     );
     final StringBuffer sink = StringBuffer();
     const CppGenerator generator = CppGenerator();
-    final OutputFileOptions<CppOptions> generatorOptions =
-        OutputFileOptions<CppOptions>(
+    final OutputFileOptions<InternalCppOptions> generatorOptions =
+        OutputFileOptions<InternalCppOptions>(
       fileType: FileType.source,
-      languageOptions: const CppOptions(),
+      languageOptions: const InternalCppOptions(
+          cppHeaderOut: '', cppSourceOut: '', headerIncludePath: ''),
     );
     generator.generate(
       generatorOptions,

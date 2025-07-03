@@ -22,10 +22,11 @@ void main() {
   late InAppPurchaseStoreKitPlatform iapStoreKitPlatform;
 
   setUpAll(() {
-    TestInAppPurchaseApi.setup(fakeStoreKitPlatform);
+    TestInAppPurchaseApi.setUp(fakeStoreKitPlatform);
   });
 
   setUp(() {
+    InAppPurchaseStoreKitPlatform.enableStoreKit1();
     InAppPurchaseStoreKitPlatform.registerPlatform();
     iapStoreKitPlatform =
         InAppPurchasePlatform.instance as InAppPurchaseStoreKitPlatform;
@@ -44,12 +45,14 @@ void main() {
     test('should get product list and correct invalid identifiers', () async {
       final InAppPurchaseStoreKitPlatform connection =
           InAppPurchaseStoreKitPlatform();
-      final ProductDetailsResponse response =
-          await connection.queryProductDetails(<String>{'123', '456', '789'});
+      final ProductDetailsResponse response = await connection
+          .queryProductDetails(<String>{'123', '456', '789', '999'});
       final List<ProductDetails> products = response.productDetails;
       expect(products.first.id, '123');
       expect(products[1].id, '456');
-      expect(response.notFoundIDs, <String>['789']);
+      expect(products[2].id, '789');
+      expect(products[2].description, '');
+      expect(response.notFoundIDs, <String>['999']);
       expect(response.error, isNull);
       expect(response.productDetails.first.currencySymbol, r'$');
       expect(response.productDetails[1].currencySymbol, 'EUR');
@@ -576,8 +579,10 @@ void main() {
       const String expectedCountryCode = 'CA';
       fakeStoreKitPlatform.setStoreFrontInfo(
           countryCode: expectedCountryCode, identifier: 'ABC');
-      final String? countryCode = await iapStoreKitPlatform.getCountryCode();
+      final String countryCode = await iapStoreKitPlatform.countryCode();
       expect(countryCode, expectedCountryCode);
+      // Ensure deprecated code keeps working until removed.
+      expect(await iapStoreKitPlatform.countryCode(), expectedCountryCode);
     });
   });
 }
