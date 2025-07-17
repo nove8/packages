@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'package:pigeon/ast.dart';
-import 'package:pigeon/kotlin_generator.dart';
+import 'package:pigeon/src/ast.dart';
+import 'package:pigeon/src/kotlin/kotlin_generator.dart';
 import 'package:test/test.dart';
 
 const String DEFAULT_PACKAGE_NAME = 'test_package';
@@ -40,7 +40,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -51,7 +52,7 @@ void main() {
     final String code = sink.toString();
     expect(code, contains('data class Foobar ('));
     expect(code, contains('val field1: Long? = null'));
-    expect(code, contains('fun fromList(list: List<Any?>): Foobar'));
+    expect(code, contains('fun fromList(pigeonVar_list: List<Any?>): Foobar'));
     expect(code, contains('fun toList(): List<Any?>'));
   });
 
@@ -69,7 +70,8 @@ void main() {
       enums: <Enum>[anEnum],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -119,7 +121,8 @@ void main() {
       ],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -132,9 +135,10 @@ void main() {
     expect(code, contains('data class Bar ('));
     expect(code, contains('val field1: Foo,'));
     expect(code, contains('val field2: String'));
-    expect(code, contains('fun fromList(list: List<Any?>): Bar'));
-    expect(code, contains('val field1 = Foo.ofRaw(list[0] as Int)!!\n'));
-    expect(code, contains('val field2 = list[1] as String\n'));
+    expect(code, contains('fun fromList(pigeonVar_list: List<Any?>): Bar'));
+    expect(code, contains('Foo.ofRaw(it.toInt())'));
+    expect(code, contains('val field1 = pigeonVar_list[0] as Foo'));
+    expect(code, contains('val field2 = pigeonVar_list[1] as String\n'));
     expect(code, contains('fun toList(): List<Any?>'));
   });
 
@@ -162,7 +166,8 @@ void main() {
       ])
     ]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -172,7 +177,7 @@ void main() {
     );
     final String code = sink.toString();
     expect(code, contains('enum class Foo(val raw: Int) {'));
-    expect(code, contains('val fooArg = Foo.ofRaw(args[0] as Int)'));
+    expect(code, contains('Foo.ofRaw(it.toInt())'));
   });
 
   test('gen one host api', () {
@@ -219,7 +224,8 @@ void main() {
       ])
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -230,17 +236,20 @@ void main() {
     final String code = sink.toString();
     expect(code, contains('interface Api'));
     expect(code, contains('fun doSomething(input: Input): Output'));
+    expect(code, contains('''
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: Api?, messageChannelSuffix: String = "") {
+    '''));
     expect(code, contains('channel.setMessageHandler'));
     expect(code, contains('''
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val inputArg = args[0] as Input
-            var wrapped: List<Any?>
-            try {
-              wrapped = listOf<Any?>(api.doSomething(inputArg))
+            val wrapped: List<Any?> = try {
+              listOf(api.doSomething(inputArg))
             } catch (exception: Throwable) {
-              wrapped = wrapError(exception)
+              PigeonUtils.wrapError(exception)
             }
             reply.reply(wrapped)
           }
@@ -370,7 +379,8 @@ void main() {
 
     final StringBuffer sink = StringBuffer();
 
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -387,10 +397,6 @@ void main() {
     expect(code, contains('val aInt32List: IntArray'));
     expect(code, contains('val aInt64List: LongArray'));
     expect(code, contains('val aFloat64List: DoubleArray'));
-    expect(
-        code,
-        contains(
-            'val aInt = list[1].let { if (it is Int) it.toLong() else it as Long }'));
     expect(code, contains('val aNullableBool: Boolean? = null'));
     expect(code, contains('val aNullableInt: Long? = null'));
     expect(code, contains('val aNullableDouble: Double? = null'));
@@ -399,10 +405,6 @@ void main() {
     expect(code, contains('val aNullableInt32List: IntArray? = null'));
     expect(code, contains('val aNullableInt64List: LongArray? = null'));
     expect(code, contains('val aNullableFloat64List: DoubleArray? = null'));
-    expect(
-        code,
-        contains(
-            'val aNullableInt = list[9].let { if (it is Int) it.toLong() else it as Long? }'));
   });
 
   test('gen one flutter api', () {
@@ -449,7 +451,8 @@ void main() {
       ])
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -496,7 +499,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -540,7 +544,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -581,7 +586,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -591,8 +597,8 @@ void main() {
     );
     final String code = sink.toString();
     expect(code, contains('fun doSomething(): Output'));
-    expect(code, contains('wrapped = listOf<Any?>(api.doSomething())'));
-    expect(code, contains('wrapped = wrapError(exception)'));
+    expect(code, contains('listOf(api.doSomething())'));
+    expect(code, contains('wrapError(exception)'));
     expect(code, contains('reply(wrapped)'));
   });
 
@@ -622,7 +628,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -649,7 +656,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -675,7 +683,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -720,7 +729,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -732,10 +742,8 @@ void main() {
     expect(code, contains('data class Outer'));
     expect(code, contains('data class Nested'));
     expect(code, contains('val nested: Nested? = null'));
-    expect(code, contains('fun fromList(list: List<Any?>): Outer'));
-    expect(
-        code, contains('val nested: Nested? = (list[0] as List<Any?>?)?.let'));
-    expect(code, contains('Nested.fromList(it)'));
+    expect(code, contains('fun fromList(pigeonVar_list: List<Any?>): Outer'));
+    expect(code, contains('val nested = pigeonVar_list[0] as Nested?'));
     expect(code, contains('fun toList(): List<Any?>'));
   });
 
@@ -784,7 +792,8 @@ void main() {
       ])
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -795,7 +804,7 @@ void main() {
     final String code = sink.toString();
     expect(code, contains('interface Api'));
     expect(code, contains('api.doSomething(argArg) {'));
-    expect(code, contains('reply.reply(wrapResult(data))'));
+    expect(code, contains('reply.reply(PigeonUtils.wrapResult(data))'));
   });
 
   test('gen one async Flutter Api', () {
@@ -843,7 +852,8 @@ void main() {
       ])
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -883,7 +893,8 @@ void main() {
       enums: <Enum>[anEnum],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -904,8 +915,9 @@ void main() {
   test('header', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    final KotlinOptions kotlinOptions = KotlinOptions(
+    final InternalKotlinOptions kotlinOptions = InternalKotlinOptions(
       copyrightHeader: makeIterable('hello world'),
+      kotlinOut: '',
     );
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
@@ -939,7 +951,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -974,7 +987,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1012,7 +1026,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1049,7 +1064,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1081,7 +1097,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1091,7 +1108,7 @@ void main() {
     );
     final String code = sink.toString();
     expect(code, contains('fun doit(): List<Long?>'));
-    expect(code, contains('wrapped = listOf<Any?>(api.doit())'));
+    expect(code, contains('listOf(api.doit())'));
     expect(code, contains('reply.reply(wrapped)'));
   });
 
@@ -1115,7 +1132,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1150,7 +1168,8 @@ void main() {
       ])
     ], classes: <Class>[], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1161,15 +1180,7 @@ void main() {
     final String code = sink.toString();
     expect(code, contains('fun add(x: Long, y: Long): Long'));
     expect(code, contains('val args = message as List<Any?>'));
-    expect(
-        code,
-        contains(
-            'val xArg = args[0].let { if (it is Int) it.toLong() else it as Long }'));
-    expect(
-        code,
-        contains(
-            'val yArg = args[1].let { if (it is Int) it.toLong() else it as Long }'));
-    expect(code, contains('wrapped = listOf<Any?>(api.add(xArg, yArg))'));
+    expect(code, contains('listOf(api.add(xArg, yArg))'));
     expect(code, contains('reply.reply(wrapped)'));
   });
 
@@ -1194,7 +1205,8 @@ void main() {
       ])
     ], classes: <Class>[], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1204,11 +1216,6 @@ void main() {
     );
     final String code = sink.toString();
     expect(code, contains('val channel = BasicMessageChannel'));
-    expect(
-      code,
-      contains(
-          'val output = it[0].let { if (it is Int) it.toLong() else it as Long }'),
-    );
     expect(code, contains('callback(Result.success(output))'));
     expect(
         code,
@@ -1235,7 +1242,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1266,7 +1274,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1300,7 +1309,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1309,10 +1319,7 @@ void main() {
       dartPackageName: DEFAULT_PACKAGE_NAME,
     );
     final String code = sink.toString();
-    expect(
-        code,
-        contains(
-            'val fooArg = args[0].let { if (it is Int) it.toLong() else it as Long? }'));
+    expect(code, contains('val fooArg = args[0]'));
   });
 
   test('nullable argument flutter', () {
@@ -1337,7 +1344,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1383,7 +1391,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1470,7 +1479,8 @@ void main() {
       ],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1489,47 +1499,7 @@ void main() {
     expect(code, isNot(contains('*//')));
   });
 
-  test("doesn't create codecs if no custom datatypes", () {
-    final Root root = Root(
-      apis: <Api>[
-        AstFlutterApi(
-          name: 'Api',
-          methods: <Method>[
-            Method(
-              name: 'method',
-              location: ApiLocation.flutter,
-              returnType: const TypeDeclaration.voidDeclaration(),
-              parameters: <Parameter>[
-                Parameter(
-                  name: 'field',
-                  type: const TypeDeclaration(
-                    baseName: 'int',
-                    isNullable: true,
-                  ),
-                ),
-              ],
-            )
-          ],
-        )
-      ],
-      classes: <Class>[],
-      enums: <Enum>[],
-    );
-    final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
-    const KotlinGenerator generator = KotlinGenerator();
-    generator.generate(
-      kotlinOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
-    final String code = sink.toString();
-    expect(code, isNot(contains(' : StandardMessageCodec() ')));
-    expect(code, contains('StandardMessageCodec'));
-  });
-
-  test('creates custom codecs if custom datatypes present', () {
+  test('creates custom codecs', () {
     final Root root = Root(apis: <Api>[
       AstFlutterApi(name: 'Api', methods: <Method>[
         Method(
@@ -1571,7 +1541,8 @@ void main() {
       ])
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1595,10 +1566,11 @@ void main() {
       apis: <Api>[api],
       classes: <Class>[],
       enums: <Enum>[],
+      containsHostApi: true,
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions =
-        KotlinOptions(errorClassName: 'SomeError');
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(errorClassName: 'SomeError', kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1639,9 +1611,11 @@ void main() {
       ],
       classes: <Class>[],
       enums: <Enum>[],
+      containsFlutterApi: true,
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1657,7 +1631,7 @@ void main() {
     expect(
         code,
         contains(
-            'callback(Result.failure(createConnectionError(channelName)))'));
+            'callback(Result.failure(PigeonUtils.createConnectionError(channelName)))'));
   });
 
   test('gen host uses default error class', () {
@@ -1687,7 +1661,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1726,7 +1701,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const KotlinOptions kotlinOptions = KotlinOptions();
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1766,8 +1742,8 @@ void main() {
     );
     final StringBuffer sink = StringBuffer();
     const String errorClassName = 'FooError';
-    const KotlinOptions kotlinOptions =
-        KotlinOptions(errorClassName: errorClassName);
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(errorClassName: errorClassName, kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1808,8 +1784,8 @@ void main() {
     );
     final StringBuffer sink = StringBuffer();
     const String errorClassName = 'FooError';
-    const KotlinOptions kotlinOptions =
-        KotlinOptions(errorClassName: errorClassName);
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(errorClassName: errorClassName, kotlinOut: '');
     const KotlinGenerator generator = KotlinGenerator();
     generator.generate(
       kotlinOptions,
@@ -1820,5 +1796,100 @@ void main() {
     final String code = sink.toString();
     expect(code, contains(errorClassName));
     expect(code, isNot(contains('FlutterError')));
+  });
+
+  test('do not generate duplicated entries in writeValue', () {
+    final Root root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'FooBar',
+          methods: <Method>[
+            Method(
+              name: 'fooBar',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration.voidDeclaration(),
+              parameters: <Parameter>[
+                Parameter(
+                  name: 'bar',
+                  type: const TypeDeclaration(
+                    baseName: 'Bar',
+                    isNullable: false,
+                  ),
+                ),
+              ],
+            )
+          ],
+        )
+      ],
+      classes: <Class>[
+        Class(
+          name: 'Foo',
+          fields: <NamedType>[
+            NamedType(
+              type: const TypeDeclaration(
+                baseName: 'int',
+                isNullable: false,
+              ),
+              name: 'foo',
+            ),
+          ],
+        ),
+        Class(
+          name: 'Bar',
+          fields: <NamedType>[
+            NamedType(
+              type: const TypeDeclaration(
+                baseName: 'Foo',
+                isNullable: false,
+              ),
+              name: 'foo',
+            ),
+            NamedType(
+              type: const TypeDeclaration(
+                baseName: 'Foo',
+                isNullable: true,
+              ),
+              name: 'foo2',
+            ),
+          ],
+        ),
+      ],
+      enums: <Enum>[],
+    );
+
+    final StringBuffer sink = StringBuffer();
+    const String errorClassName = 'FooError';
+    const InternalKotlinOptions kotlinOptions =
+        InternalKotlinOptions(errorClassName: errorClassName, kotlinOut: '');
+    const KotlinGenerator generator = KotlinGenerator();
+    generator.generate(
+      kotlinOptions,
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+
+    final String code = sink.toString();
+
+    // Extract override fun writeValue block
+    final int blockStart = code.indexOf('override fun writeValue');
+    expect(blockStart, isNot(-1));
+    final int blockEnd = code.indexOf('super.writeValue', blockStart);
+    expect(blockEnd, isNot(-1));
+    final String writeValueBlock = code.substring(blockStart, blockEnd);
+
+    // Count the occurrence of 'is Foo' in the block
+    int count = 0;
+    int index = 0;
+    while (index != -1) {
+      index = writeValueBlock.indexOf('is Foo', index);
+      if (index != -1) {
+        count++;
+        index += 'is Foo'.length;
+      }
+    }
+
+    // There should be only one occurrence of 'is Foo' in the block
+    expect(count, 1);
   });
 }

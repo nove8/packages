@@ -9,6 +9,8 @@ import 'package:meta/meta.dart';
 
 import 'common/cmake.dart';
 import 'common/core.dart';
+import 'common/file_filters.dart';
+import 'common/flutter_command_utils.dart';
 import 'common/gradle.dart';
 import 'common/output_utils.dart';
 import 'common/package_looping_command.dart';
@@ -21,6 +23,8 @@ const String _integrationTestFlag = 'integration';
 
 const String _iOSDestinationFlag = 'ios-destination';
 
+const String _xcodeWarningsExceptionsFlag = 'xcode-warnings-exceptions';
+
 const int _exitNoIOSSimulators = 3;
 
 /// The error message logged when a FlutterTestRunner test is not annotated with
@@ -30,7 +34,7 @@ const String misconfiguredJavaIntegrationTestErrorExplanation =
     'The following files use @RunWith(FlutterTestRunner.class) '
     'but not @DartIntegrationTest, which will cause hangs when run with '
     'this command. See '
-    'https://github.com/flutter/flutter/wiki/Plugin-Tests#enabling-android-ui-tests '
+    'https://github.com/flutter/flutter/blob/master/docs/ecosystem/testing/Plugin-Tests.md#enabling-android-ui-tests '
     'for instructions.';
 
 /// The command to run native tests for plugins:
@@ -43,6 +47,7 @@ class NativeTestCommand extends PackageLoopingCommand {
     super.packagesDir, {
     super.processRunner,
     super.platform,
+    super.gitDir,
     Abi? abi,
   })  : _abi = abi ?? Abi.current(),
         _xcode = Xcode(processRunner: processRunner, log: true) {
@@ -65,6 +70,14 @@ class NativeTestCommand extends PackageLoopingCommand {
         help: 'Runs native unit tests', defaultsTo: true);
     argParser.addFlag(_integrationTestFlag,
         help: 'Runs native integration (UI) tests', defaultsTo: true);
+
+    argParser.addMultiOption(
+      _xcodeWarningsExceptionsFlag,
+      help: 'A list of packages that are allowed to have Xcode warnings.\n\n'
+          'Alternately, a list of one or more YAML files that contain a list '
+          'of packages to allow Xcode warnings.',
+      defaultsTo: <String>[],
+    );
   }
 
   // The ABI of the host.
@@ -99,6 +112,15 @@ this command.
   Map<String, _PlatformDetails> _platforms = <String, _PlatformDetails>{};
 
   List<String> _requestedPlatforms = <String>[];
+
+  Set<String> _xcodeWarningsExceptions = <String>{};
+
+  @override
+  bool shouldIgnoreFile(String path) {
+    return isRepoLevelNonCodeImpactingFile(path) || isPackageSupportFile(path);
+    // It may seem tempting to filter out *.dart, but that would skip critical
+    // testing since native integration tests run the full compiled application.
+  }
 
   @override
   Future<void> initializeRun() async {
@@ -151,6 +173,8 @@ this command.
         destination,
       ];
     }
+
+    _xcodeWarningsExceptions = getYamlListArg(_xcodeWarningsExceptionsFlag);
   }
 
   @override
@@ -315,12 +339,13 @@ this command.
         platform: platform,
       );
       if (!project.isConfigured()) {
-        final int exitCode = await processRunner.runAndStream(
-          flutterCommand,
-          <String>['build', 'apk', '--config-only'],
-          workingDir: example.directory,
+        final bool buildSuccess = await runConfigOnlyBuild(
+          example,
+          processRunner,
+          platform,
+          FlutterPlatform.android,
         );
-        if (exitCode != 0) {
+        if (!buildSuccess) {
           printError('Unable to configure Gradle project.');
           failed = true;
           continue;
@@ -367,10 +392,21 @@ this command.
               'notAnnotation=io.flutter.plugins.DartIntegrationTest';
 
           print('Running integration tests...');
+          // Explicitly request all ABIs, as Flutter would if being called
+          // without a specific target (see
+          // https://github.com/flutter/flutter/pull/154476) to ensure it can
+          // run on any architecture emulator.
+          const List<String> abis = <String>[
+            'android-arm',
+            'android-arm64',
+            'android-x64',
+            'android-x86'
+          ];
           final int exitCode = await project.runCommand(
             'app:connectedAndroidTest',
             arguments: <String>[
               '-Pandroid.testInstrumentationRunnerArguments.$filter',
+              '-Ptarget-platform=${abis.join(',')}',
             ],
           );
           if (exitCode != 0) {
@@ -405,12 +441,12 @@ this command.
   }
 
   Future<_PlatformResult> _testIOS(RepositoryPackage plugin, _TestMode mode) {
-    return _runXcodeTests(plugin, 'iOS', mode,
+    return _runXcodeTests(plugin, FlutterPlatform.ios, mode,
         extraFlags: _iOSDestinationFlags);
   }
 
   Future<_PlatformResult> _testMacOS(RepositoryPackage plugin, _TestMode mode) {
-    return _runXcodeTests(plugin, 'macOS', mode);
+    return _runXcodeTests(plugin, FlutterPlatform.macos, mode);
   }
 
   /// Runs all applicable tests for [plugin], printing status and returning
@@ -420,7 +456,7 @@ this command.
   /// usually at "example/{ios,macos}/Runner.xcworkspace".
   Future<_PlatformResult> _runXcodeTests(
     RepositoryPackage plugin,
-    String platform,
+    FlutterPlatform targetPlatform,
     _TestMode mode, {
     List<String> extraFlags = const <String>[],
   }) async {
@@ -431,6 +467,8 @@ this command.
     } else if (mode.integrationOnly) {
       testTarget = 'RunnerUITests';
     }
+    final String targetPlatformString =
+        targetPlatform == FlutterPlatform.ios ? 'iOS' : 'macOS';
 
     bool ranUnitTests = false;
     // Assume skipped until at least one test has run.
@@ -444,8 +482,8 @@ this command.
       bool exampleHasUnitTests = false;
       final String? targetToCheck =
           testTarget ?? (mode.unit ? unitTestTarget : null);
-      final Directory xcodeProject = example.directory
-          .childDirectory(platform.toLowerCase())
+      final Directory xcodeProject = example
+          .platformDirectory(targetPlatform)
           .childDirectory('Runner.xcodeproj');
       if (targetToCheck != null) {
         final bool? hasTarget =
@@ -462,17 +500,37 @@ this command.
         }
       }
 
-      _printRunningExampleTestsMessage(example, platform);
+      // Ensure that the native project files are configured for a debug build,
+      // otherwise the Xcode build step will fail due to mode mismatch.
+      final bool buildSuccess = await runConfigOnlyBuild(
+        example,
+        processRunner,
+        platform,
+        targetPlatform,
+        buildDebug: true,
+      );
+      if (!buildSuccess) {
+        printError('Unable to generate debug Xcode project files');
+        overallResult = RunState.failed;
+        continue;
+      }
+
+      _printRunningExampleTestsMessage(example, targetPlatformString);
       final int exitCode = await _xcode.runXcodeBuild(
         example.directory,
-        actions: <String>['test'],
-        workspace: '${platform.toLowerCase()}/Runner.xcworkspace',
+        targetPlatformString,
+        // Clean before testing to remove cached swiftmodules from previous
+        // runs, which can cause conflicts.
+        actions: <String>['clean', 'test'],
+        workspace: '${targetPlatformString.toLowerCase()}/Runner.xcworkspace',
         scheme: 'Runner',
         configuration: 'Debug',
+        hostPlatform: platform,
         extraFlags: <String>[
           if (testTarget != null) '-only-testing:$testTarget',
           ...extraFlags,
-          'GCC_TREAT_WARNINGS_AS_ERRORS=YES',
+          if (!_xcodeWarningsExceptions.contains(plugin.directory.basename))
+            'GCC_TREAT_WARNINGS_AS_ERRORS=YES',
         ],
       );
 
@@ -480,9 +538,10 @@ this command.
       const int xcodebuildNoTestExitCode = 66;
       switch (exitCode) {
         case xcodebuildNoTestExitCode:
-          _printNoExampleTestsMessage(example, platform);
+          _printNoExampleTestsMessage(example, targetPlatformString);
         case 0:
-          printSuccess('Successfully ran $platform xctest for $exampleName');
+          printSuccess(
+              'Successfully ran $targetPlatformString xctest for $exampleName');
           // If this is the first test, assume success until something fails.
           if (overallResult == RunState.skipped) {
             overallResult = RunState.succeeded;
@@ -497,7 +556,6 @@ this command.
           if (exampleHasUnitTests) {
             ranUnitTests = true;
           }
-          break;
       }
     }
 

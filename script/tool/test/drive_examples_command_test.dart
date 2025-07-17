@@ -3,13 +3,16 @@
 // found in the LICENSE file.
 
 import 'dart:convert';
+import 'dart:io' as io;
 
 import 'package:args/command_runner.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:file/file.dart';
-import 'package:file/memory.dart';
 import 'package:flutter_plugin_tools/src/common/core.dart';
 import 'package:flutter_plugin_tools/src/common/plugin_utils.dart';
 import 'package:flutter_plugin_tools/src/drive_examples_command.dart';
+import 'package:git/git.dart';
+import 'package:mockito/mockito.dart';
 import 'package:platform/platform.dart';
 import 'package:test/test.dart';
 
@@ -21,23 +24,31 @@ const String _fakeAndroidDevice = 'emulator-1234';
 
 void main() {
   group('test drive_example_command', () {
-    late FileSystem fileSystem;
     late Platform mockPlatform;
     late Directory packagesDir;
     late CommandRunner<void> runner;
     late RecordingProcessRunner processRunner;
+    late RecordingProcessRunner gitProcessRunner;
 
     setUp(() {
-      fileSystem = MemoryFileSystem();
       mockPlatform = MockPlatform();
-      packagesDir = createPackagesDirectory(fileSystem: fileSystem);
-      processRunner = RecordingProcessRunner();
-      final DriveExamplesCommand command = DriveExamplesCommand(packagesDir,
-          processRunner: processRunner, platform: mockPlatform);
+      final GitDir gitDir;
+      (:packagesDir, :processRunner, :gitProcessRunner, :gitDir) =
+          configureBaseCommandMocks(platform: mockPlatform);
+      final DriveExamplesCommand command = DriveExamplesCommand(
+        packagesDir,
+        processRunner: processRunner,
+        platform: mockPlatform,
+        gitDir: gitDir,
+      );
 
       runner = CommandRunner<void>(
           'drive_examples_command', 'Test for drive_example_command');
       runner.addCommand(command);
+
+      // TODO(dit): Clean this up, https://github.com/flutter/flutter/issues/151869
+      mockPlatform.environment['CHANNEL'] = 'master';
+      mockPlatform.environment['FLUTTER_LOGS_DIR'] = '/path/to/logs';
     });
 
     void setMockFlutterDevicesOutput({
@@ -82,6 +93,24 @@ void main() {
         output,
         containsAllInOrder(<Matcher>[
           contains('Exactly one of'),
+        ]),
+      );
+    });
+
+    test('fails if wasm flag is present but not web platform', () async {
+      setMockFlutterDevicesOutput();
+      Error? commandError;
+      final List<String> output = await runCapturingPrint(
+          runner, <String>['drive-examples', '--android', '--wasm'],
+          errorHandler: (Error e) {
+        commandError = e;
+      });
+
+      expect(commandError, isA<ToolExit>());
+      expect(
+        output,
+        containsAllInOrder(<Matcher>[
+          contains('--wasm is only supported on the web platform'),
         ]),
       );
     });
@@ -308,9 +337,136 @@ void main() {
                   'test',
                   '-d',
                   _fakeIOSDevice,
+                  '--debug-logs-dir=/path/to/logs',
                   'integration_test',
                 ],
                 pluginExampleDirectory.path),
+          ]));
+    });
+
+    test('handles missing CI debug logs directory', () async {
+      mockPlatform.environment.remove('FLUTTER_LOGS_DIR');
+
+      final RepositoryPackage plugin = createFakePlugin(
+        'plugin',
+        packagesDir,
+        extraFiles: <String>[
+          'example/integration_test/bar_test.dart',
+          'example/integration_test/foo_test.dart',
+          'example/integration_test/ignore_me.dart',
+          'example/android/android.java',
+          'example/ios/ios.m',
+        ],
+        platformSupport: <String, PlatformDetails>{
+          platformAndroid: const PlatformDetails(PlatformSupport.inline),
+          platformIOS: const PlatformDetails(PlatformSupport.inline),
+        },
+      );
+
+      final Directory pluginExampleDirectory = getExampleDir(plugin);
+
+      setMockFlutterDevicesOutput();
+      final List<String> output =
+          await runCapturingPrint(runner, <String>['drive-examples', '--ios']);
+
+      expect(
+        output,
+        containsAllInOrder(<Matcher>[
+          contains('Running for plugin'),
+          contains('No issues found!'),
+        ]),
+      );
+
+      expect(
+          processRunner.recordedCalls,
+          orderedEquals(<ProcessCall>[
+            ProcessCall(getFlutterCommand(mockPlatform),
+                const <String>['devices', '--machine'], null),
+            ProcessCall(
+                getFlutterCommand(mockPlatform),
+                const <String>[
+                  'test',
+                  '-d',
+                  _fakeIOSDevice,
+                  'integration_test',
+                ],
+                pluginExampleDirectory.path),
+          ]));
+    });
+
+    test('saves a screenshot if test is taking too long', () async {
+      setMockFlutterDevicesOutput();
+      final RepositoryPackage plugin = createFakePlugin(
+        'plugin',
+        packagesDir,
+        extraFiles: <String>[
+          'example/integration_test/bar_test.dart',
+          'example/ios/ios.m',
+        ],
+        platformSupport: <String, PlatformDetails>{
+          platformAndroid: const PlatformDetails(PlatformSupport.inline),
+          platformIOS: const PlatformDetails(PlatformSupport.inline),
+        },
+      );
+
+      final FakeAsync fakeAsync = FakeAsync();
+      processRunner.mockProcessesForExecutable['flutter']!
+          .addAll(<FakeProcessInfo>[
+        FakeProcessInfo(
+            _FakeDelayingProcess(
+                delayDuration: const Duration(minutes: 11),
+                fakeAsync: fakeAsync),
+            <String>['test']),
+        FakeProcessInfo(MockProcess(), <String>['screenshot']),
+      ]);
+
+      final Directory pluginExampleDirectory = getExampleDir(plugin);
+
+      List<String> output = <String>[];
+      fakeAsync.run((_) {
+        () async {
+          output = await runCapturingPrint(
+              runner, <String>['drive-examples', '--ios']);
+        }();
+      });
+      fakeAsync.flushTimers();
+
+      expect(
+        output,
+        containsAllInOrder(<Matcher>[
+          contains('Running for plugin'),
+          contains(
+              'Test is taking a long time, taking screenshot test-timeout-screenshot_integration_test.png...'),
+          contains('No issues found!'),
+        ]),
+      );
+
+      expect(
+          processRunner.recordedCalls,
+          orderedEquals(<ProcessCall>[
+            ProcessCall(getFlutterCommand(mockPlatform),
+                const <String>['devices', '--machine'], null),
+            ProcessCall(
+              getFlutterCommand(mockPlatform),
+              const <String>[
+                'test',
+                '-d',
+                _fakeIOSDevice,
+                '--debug-logs-dir=/path/to/logs',
+                'integration_test',
+              ],
+              pluginExampleDirectory.path,
+            ),
+            ProcessCall(
+              getFlutterCommand(mockPlatform),
+              const <String>[
+                'screenshot',
+                '-d',
+                _fakeIOSDevice,
+                '--out=/path/to/logs/test-timeout-screenshot_integration_test.png',
+              ],
+              pluginExampleDirectory.path,
+            ),
           ]));
     });
 
@@ -375,6 +531,7 @@ void main() {
                   'test',
                   '-d',
                   'linux',
+                  '--debug-logs-dir=/path/to/logs',
                   'integration_test',
                 ],
                 pluginExampleDirectory.path),
@@ -442,6 +599,7 @@ void main() {
                   'test',
                   '-d',
                   'macos',
+                  '--debug-logs-dir=/path/to/logs',
                   'integration_test',
                 ],
                 pluginExampleDirectory.path),
@@ -489,6 +647,7 @@ void main() {
                     'test',
                     '-d',
                     'macos',
+                    '--debug-logs-dir=/path/to/logs',
                     'integration_test/first_test.dart',
                   ],
                   pluginExampleDirectory.path),
@@ -498,6 +657,7 @@ void main() {
                     'test',
                     '-d',
                     'macos',
+                    '--debug-logs-dir=/path/to/logs',
                     'integration_test/second_test.dart',
                   ],
                   pluginExampleDirectory.path),
@@ -544,6 +704,7 @@ void main() {
                     'test',
                     '-d',
                     'linux',
+                    '--debug-logs-dir=/path/to/logs',
                     'integration_test/first_test.dart',
                   ],
                   pluginExampleDirectory.path),
@@ -553,6 +714,7 @@ void main() {
                     'test',
                     '-d',
                     'linux',
+                    '--debug-logs-dir=/path/to/logs',
                     'integration_test/second_test.dart',
                   ],
                   pluginExampleDirectory.path),
@@ -599,6 +761,7 @@ void main() {
                     'test',
                     '-d',
                     'windows',
+                    '--debug-logs-dir=/path/to/logs',
                     'integration_test/first_test.dart',
                   ],
                   pluginExampleDirectory.path),
@@ -608,6 +771,7 @@ void main() {
                     'test',
                     '-d',
                     'windows',
+                    '--debug-logs-dir=/path/to/logs',
                     'integration_test/second_test.dart',
                   ],
                   pluginExampleDirectory.path),
@@ -678,7 +842,59 @@ void main() {
                   'web-server',
                   '--web-port=7357',
                   '--browser-name=chrome',
-                  '--web-renderer=html',
+                  '--screenshot=/path/to/logs/plugin_example-drive',
+                  '--driver',
+                  'test_driver/integration_test.dart',
+                  '--target',
+                  'integration_test/plugin_test.dart',
+                ],
+                pluginExampleDirectory.path),
+          ]));
+    });
+
+    test('drives a web plugin compiled to WASM', () async {
+      final RepositoryPackage plugin = createFakePlugin(
+        'plugin',
+        packagesDir,
+        extraFiles: <String>[
+          'example/integration_test/plugin_test.dart',
+          'example/test_driver/integration_test.dart',
+          'example/web/index.html',
+        ],
+        platformSupport: <String, PlatformDetails>{
+          platformWeb: const PlatformDetails(PlatformSupport.inline),
+        },
+      );
+
+      final Directory pluginExampleDirectory = getExampleDir(plugin);
+
+      final List<String> output = await runCapturingPrint(runner, <String>[
+        'drive-examples',
+        '--web',
+        '--wasm',
+      ]);
+
+      expect(
+        output,
+        containsAllInOrder(<Matcher>[
+          contains('Running for plugin'),
+          contains('No issues found!'),
+        ]),
+      );
+
+      expect(
+          processRunner.recordedCalls,
+          orderedEquals(<ProcessCall>[
+            ProcessCall(
+                getFlutterCommand(mockPlatform),
+                const <String>[
+                  'drive',
+                  '-d',
+                  'web-server',
+                  '--web-port=7357',
+                  '--browser-name=chrome',
+                  '--wasm',
+                  '--screenshot=/path/to/logs/plugin_example-drive',
                   '--driver',
                   'test_driver/integration_test.dart',
                   '--target',
@@ -727,7 +943,7 @@ void main() {
                   'web-server',
                   '--web-port=7357',
                   '--browser-name=chrome',
-                  '--web-renderer=html',
+                  '--screenshot=/path/to/logs/plugin_example-drive',
                   '--driver',
                   'test_driver/integration_test.dart',
                   '--target',
@@ -779,8 +995,8 @@ void main() {
                   'web-server',
                   '--web-port=7357',
                   '--browser-name=chrome',
-                  '--web-renderer=html',
                   '--chrome-binary=/path/to/chrome',
+                  '--screenshot=/path/to/logs/plugin_example-drive',
                   '--driver',
                   'test_driver/integration_test.dart',
                   '--target',
@@ -851,6 +1067,7 @@ void main() {
                   'test',
                   '-d',
                   'windows',
+                  '--debug-logs-dir=/path/to/logs',
                   'integration_test',
                 ],
                 pluginExampleDirectory.path),
@@ -897,6 +1114,7 @@ void main() {
                   'test',
                   '-d',
                   _fakeAndroidDevice,
+                  '--debug-logs-dir=/path/to/logs',
                   'integration_test',
                 ],
                 pluginExampleDirectory.path),
@@ -943,6 +1161,7 @@ void main() {
                   'test',
                   '-d',
                   _fakeAndroidDevice,
+                  '--debug-logs-dir=/path/to/logs',
                   'integration_test',
                 ],
                 pluginExampleDirectory.path),
@@ -1071,6 +1290,7 @@ void main() {
                   '-d',
                   _fakeIOSDevice,
                   '--enable-experiment=exp1',
+                  '--debug-logs-dir=/path/to/logs',
                   'integration_test',
                 ],
                 pluginExampleDirectory.path),
@@ -1226,7 +1446,7 @@ void main() {
                   'web-server',
                   '--web-port=7357',
                   '--browser-name=chrome',
-                  '--web-renderer=html',
+                  '--screenshot=/path/to/logs/plugin_example-drive',
                   '--driver',
                   'test_driver/integration_test.dart',
                   '--target',
@@ -1241,7 +1461,7 @@ void main() {
                   'web-server',
                   '--web-port=7357',
                   '--browser-name=chrome',
-                  '--web-renderer=html',
+                  '--screenshot=/path/to/logs/plugin_example-drive',
                   '--driver',
                   'test_driver/integration_test.dart',
                   '--target',
@@ -1299,6 +1519,7 @@ void main() {
                   'test',
                   '-d',
                   _fakeIOSDevice,
+                  '--debug-logs-dir=/path/to/logs',
                   'integration_test',
                 ],
                 pluginExampleDirectory.path),
@@ -1339,7 +1560,51 @@ void main() {
                     'web-server',
                     '--web-port=7357',
                     '--browser-name=chrome',
-                    '--web-renderer=html',
+                    '--screenshot=/path/to/logs/a_package_example-drive',
+                    '--driver',
+                    'test_driver/integration_test.dart',
+                    '--target',
+                    'integration_test/foo_test.dart'
+                  ],
+                  exampleDirectory.path),
+            ]));
+      });
+
+      test('drive handles missing CI screenshot directory', () async {
+        mockPlatform.environment.remove('FLUTTER_LOGS_DIR');
+
+        final RepositoryPackage package =
+            createFakePackage('a_package', packagesDir, extraFiles: <String>[
+          'example/integration_test/foo_test.dart',
+          'example/test_driver/integration_test.dart',
+          'example/web/index.html',
+        ]);
+        final Directory exampleDirectory = getExampleDir(package);
+
+        final List<String> output = await runCapturingPrint(runner, <String>[
+          'drive-examples',
+          '--web',
+        ]);
+
+        expect(
+          output,
+          containsAllInOrder(<Matcher>[
+            contains('Running for a_package'),
+            contains('No issues found!'),
+          ]),
+        );
+
+        expect(
+            processRunner.recordedCalls,
+            orderedEquals(<ProcessCall>[
+              ProcessCall(
+                  getFlutterCommand(mockPlatform),
+                  const <String>[
+                    'drive',
+                    '-d',
+                    'web-server',
+                    '--web-port=7357',
+                    '--browser-name=chrome',
                     '--driver',
                     'test_driver/integration_test.dart',
                     '--target',
@@ -1419,7 +1684,7 @@ void main() {
                     'web-server',
                     '--web-port=7357',
                     '--browser-name=chrome',
-                    '--web-renderer=html',
+                    '--screenshot=/path/to/logs/a_package_example_with_web-drive',
                     '--driver',
                     'test_driver/integration_test.dart',
                     '--target',
@@ -1450,5 +1715,89 @@ void main() {
         expect(processRunner.recordedCalls.isEmpty, true);
       });
     });
+
+    group('file filtering', () {
+      const List<String> files = <String>[
+        'pubspec.yaml',
+        'foo.dart',
+        'foo.java',
+        'foo.kt',
+        'foo.m',
+        'foo.swift',
+        'foo.cc',
+        'foo.cpp',
+        'foo.h',
+      ];
+      for (final String file in files) {
+        test('runs command for changes to $file', () async {
+          createFakePackage('package_a', packagesDir);
+
+          gitProcessRunner.mockProcessesForExecutable['git-diff'] =
+              <FakeProcessInfo>[
+            FakeProcessInfo(MockProcess(stdout: '''
+packages/package_a/$file
+''')),
+          ];
+
+          // The target platform is irrelevant here; because this repo's
+          // packages are fully federated, there's no need to distinguish
+          // the ignore list by target (e.g., skipping iOS tests if only Java or
+          // Kotlin files change), because package-level filering will already
+          // accomplish the same goal.
+          final List<String> output = await runCapturingPrint(
+              runner, <String>['drive-examples', '--web']);
+
+          expect(
+              output,
+              containsAllInOrder(<Matcher>[
+                contains('Running for package_a'),
+              ]));
+        });
+      }
+
+      test('skips commands if all files should be ignored', () async {
+        createFakePackage('package_a', packagesDir);
+
+        gitProcessRunner.mockProcessesForExecutable['git-diff'] =
+            <FakeProcessInfo>[
+          FakeProcessInfo(MockProcess(stdout: '''
+README.md
+CODEOWNERS
+packages/package_a/CHANGELOG.md
+''')),
+        ];
+
+        final List<String> output =
+            await runCapturingPrint(runner, <String>['drive-examples']);
+
+        expect(
+            output,
+            isNot(containsAllInOrder(<Matcher>[
+              contains('Running for package_a'),
+            ])));
+        expect(
+            output,
+            containsAllInOrder(<Matcher>[
+              contains('SKIPPING ALL PACKAGES'),
+            ]));
+      });
+    });
   });
+}
+
+class _FakeDelayingProcess extends Fake implements io.Process {
+  /// Creates a mock process that takes [delayDuration] time to exit successfully.
+  _FakeDelayingProcess(
+      {required Duration delayDuration, required FakeAsync fakeAsync})
+      : _delayDuration = delayDuration,
+        _fakeAsync = fakeAsync;
+
+  final Duration _delayDuration;
+  final FakeAsync _fakeAsync;
+
+  @override
+  Future<int> get exitCode async {
+    _fakeAsync.elapse(_delayDuration);
+    return 0;
+  }
 }

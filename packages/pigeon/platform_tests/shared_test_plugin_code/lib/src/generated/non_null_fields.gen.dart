@@ -30,6 +30,21 @@ List<Object?> wrapResponse(
   return <Object?>[error.code, error.message, error.details];
 }
 
+bool _deepEquals(Object? a, Object? b) {
+  if (a is List && b is List) {
+    return a.length == b.length &&
+        a.indexed
+            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+  }
+  if (a is Map && b is Map) {
+    return a.length == b.length &&
+        a.entries.every((MapEntry<Object?, Object?> entry) =>
+            (b as Map<Object?, Object?>).containsKey(entry.key) &&
+            _deepEquals(entry.value, b[entry.key]));
+  }
+  return a == b;
+}
+
 enum ReplyType {
   success,
   error,
@@ -42,10 +57,14 @@ class NonNullFieldSearchRequest {
 
   String query;
 
-  Object encode() {
+  List<Object?> _toList() {
     return <Object?>[
       query,
     ];
+  }
+
+  Object encode() {
+    return _toList();
   }
 
   static NonNullFieldSearchRequest decode(Object result) {
@@ -54,6 +73,23 @@ class NonNullFieldSearchRequest {
       query: result[0]! as String,
     );
   }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! NonNullFieldSearchRequest ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
 }
 
 class ExtraData {
@@ -66,11 +102,15 @@ class ExtraData {
 
   String detailB;
 
-  Object encode() {
+  List<Object?> _toList() {
     return <Object?>[
       detailA,
       detailB,
     ];
+  }
+
+  Object encode() {
+    return _toList();
   }
 
   static ExtraData decode(Object result) {
@@ -80,6 +120,22 @@ class ExtraData {
       detailB: result[1]! as String,
     );
   }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ExtraData || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
 }
 
 class NonNullFieldSearchReply {
@@ -101,14 +157,18 @@ class NonNullFieldSearchReply {
 
   ReplyType type;
 
-  Object encode() {
+  List<Object?> _toList() {
     return <Object?>[
       result,
       error,
       indices,
-      extraData.encode(),
-      type.index,
+      extraData,
+      type,
     ];
+  }
+
+  Object encode() {
+    return _toList();
   }
 
   static NonNullFieldSearchReply decode(Object result) {
@@ -117,24 +177,46 @@ class NonNullFieldSearchReply {
       result: result[0]! as String,
       error: result[1]! as String,
       indices: (result[2] as List<Object?>?)!.cast<int?>(),
-      extraData: ExtraData.decode(result[3]! as List<Object?>),
-      type: ReplyType.values[result[4]! as int],
+      extraData: result[3]! as ExtraData,
+      type: result[4]! as ReplyType,
     );
   }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! NonNullFieldSearchReply || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
 }
 
-class _NonNullFieldHostApiCodec extends StandardMessageCodec {
-  const _NonNullFieldHostApiCodec();
+class _PigeonCodec extends StandardMessageCodec {
+  const _PigeonCodec();
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
-    if (value is ExtraData) {
-      buffer.putUint8(128);
-      writeValue(buffer, value.encode());
-    } else if (value is NonNullFieldSearchReply) {
+    if (value is int) {
+      buffer.putUint8(4);
+      buffer.putInt64(value);
+    } else if (value is ReplyType) {
       buffer.putUint8(129);
-      writeValue(buffer, value.encode());
+      writeValue(buffer, value.index);
     } else if (value is NonNullFieldSearchRequest) {
       buffer.putUint8(130);
+      writeValue(buffer, value.encode());
+    } else if (value is ExtraData) {
+      buffer.putUint8(131);
+      writeValue(buffer, value.encode());
+    } else if (value is NonNullFieldSearchReply) {
+      buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -144,12 +226,15 @@ class _NonNullFieldHostApiCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 128:
-        return ExtraData.decode(readValue(buffer)!);
       case 129:
-        return NonNullFieldSearchReply.decode(readValue(buffer)!);
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : ReplyType.values[value];
       case 130:
         return NonNullFieldSearchRequest.decode(readValue(buffer)!);
+      case 131:
+        return ExtraData.decode(readValue(buffer)!);
+      case 132:
+        return NonNullFieldSearchReply.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -162,83 +247,50 @@ class NonNullFieldHostApi {
   /// BinaryMessenger will be used which routes to the host platform.
   NonNullFieldHostApi(
       {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : __pigeon_binaryMessenger = binaryMessenger,
-        __pigeon_messageChannelSuffix =
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix =
             messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
-  final BinaryMessenger? __pigeon_binaryMessenger;
+  final BinaryMessenger? pigeonVar_binaryMessenger;
 
-  static const MessageCodec<Object?> pigeonChannelCodec =
-      _NonNullFieldHostApiCodec();
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
-  final String __pigeon_messageChannelSuffix;
+  final String pigeonVar_messageChannelSuffix;
 
   Future<NonNullFieldSearchReply> search(
       NonNullFieldSearchRequest nested) async {
-    final String __pigeon_channelName =
-        'dev.flutter.pigeon.pigeon_integration_tests.NonNullFieldHostApi.search$__pigeon_messageChannelSuffix';
-    final BasicMessageChannel<Object?> __pigeon_channel =
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_integration_tests.NonNullFieldHostApi.search$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
         BasicMessageChannel<Object?>(
-      __pigeon_channelName,
+      pigeonVar_channelName,
       pigeonChannelCodec,
-      binaryMessenger: __pigeon_binaryMessenger,
+      binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final List<Object?>? __pigeon_replyList =
-        await __pigeon_channel.send(<Object?>[nested]) as List<Object?>?;
-    if (__pigeon_replyList == null) {
-      throw _createConnectionError(__pigeon_channelName);
-    } else if (__pigeon_replyList.length > 1) {
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[nested]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
       throw PlatformException(
-        code: __pigeon_replyList[0]! as String,
-        message: __pigeon_replyList[1] as String?,
-        details: __pigeon_replyList[2],
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
       );
-    } else if (__pigeon_replyList[0] == null) {
+    } else if (pigeonVar_replyList[0] == null) {
       throw PlatformException(
         code: 'null-error',
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (__pigeon_replyList[0] as NonNullFieldSearchReply?)!;
-    }
-  }
-}
-
-class _NonNullFieldFlutterApiCodec extends StandardMessageCodec {
-  const _NonNullFieldFlutterApiCodec();
-  @override
-  void writeValue(WriteBuffer buffer, Object? value) {
-    if (value is ExtraData) {
-      buffer.putUint8(128);
-      writeValue(buffer, value.encode());
-    } else if (value is NonNullFieldSearchReply) {
-      buffer.putUint8(129);
-      writeValue(buffer, value.encode());
-    } else if (value is NonNullFieldSearchRequest) {
-      buffer.putUint8(130);
-      writeValue(buffer, value.encode());
-    } else {
-      super.writeValue(buffer, value);
-    }
-  }
-
-  @override
-  Object? readValueOfType(int type, ReadBuffer buffer) {
-    switch (type) {
-      case 128:
-        return ExtraData.decode(readValue(buffer)!);
-      case 129:
-        return NonNullFieldSearchReply.decode(readValue(buffer)!);
-      case 130:
-        return NonNullFieldSearchRequest.decode(readValue(buffer)!);
-      default:
-        return super.readValueOfType(type, buffer);
+      return (pigeonVar_replyList[0] as NonNullFieldSearchReply?)!;
     }
   }
 }
 
 abstract class NonNullFieldFlutterApi {
-  static const MessageCodec<Object?> pigeonChannelCodec =
-      _NonNullFieldFlutterApiCodec();
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   NonNullFieldSearchReply search(NonNullFieldSearchRequest request);
 
@@ -250,15 +302,16 @@ abstract class NonNullFieldFlutterApi {
     messageChannelSuffix =
         messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
-      final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<
+      final BasicMessageChannel<
+          Object?> pigeonVar_channel = BasicMessageChannel<
               Object?>(
           'dev.flutter.pigeon.pigeon_integration_tests.NonNullFieldFlutterApi.search$messageChannelSuffix',
           pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
-        __pigeon_channel.setMessageHandler(null);
+        pigeonVar_channel.setMessageHandler(null);
       } else {
-        __pigeon_channel.setMessageHandler((Object? message) async {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
               'Argument for dev.flutter.pigeon.pigeon_integration_tests.NonNullFieldFlutterApi.search was null.');
           final List<Object?> args = (message as List<Object?>?)!;

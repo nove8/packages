@@ -24,8 +24,7 @@ There are two ways to load the JS SDK in your app.
 
 The most performant way is to modify your `web/index.html` file to insert a
 script tag [as recommended](https://developers.google.com/identity/gsi/web/guides/client-library).
-Place the `script` tag in the `<head>` of your site, next to the script tag that
-loads `flutter.js`, so the browser can downloaded both in parallel:
+Place the `script` tag in the `<head>` of your site:
 
 <?code-excerpt "example/web/index-with-script-tag.html (script-tag)"?>
 ```html
@@ -33,8 +32,6 @@ loads `flutter.js`, so the browser can downloaded both in parallel:
 <!-- ··· -->
   <!-- Include the GSI SDK below -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <!-- This script adds the flutter initialization JS code -->
-  <script src="flutter.js" defer></script>
 </head>
 ```
 
@@ -96,10 +93,3 @@ Refer to the official documentation site for the latest browser compatibility
 information of the underlying JS SDK:
 
 * **Sign In With Google > [Supported browsers and platforms](https://developers.google.com/identity/gsi/web/guides/supported-browsers)**
-
-## Testing
-
-This web-only package uses `dart:test` to test its features. They can be run
-with `dart test -p chrome`.
-
-_(Look at `test/README.md` and `tool/run_tests.dart` for more info.)_

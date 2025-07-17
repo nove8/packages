@@ -1,3 +1,25 @@
+## NEXT
+
+* Updates README to indicate that Andoid SDK <21 is no longer supported.
+
+## 4.11.0
+
+* Adds support to set the over-scroll mode for the WebView. See `WebViewController.setOverScrollMode`.
+* Updates minimum supported SDK version to Flutter 3.27/Dart 3.6.
+
+## 4.10.0
+
+* Updates minimum supported `webview_flutter_android` from 3.16.0 to 4.0.0.
+
+## 4.9.0
+
+* Adds endorsed macOS support.
+* Updates minimum supported SDK version to Flutter 3.24/Dart 3.5.
+
+## 4.8.0
+
+* Adds `onHttpError` callback to `NavigationDelegate` to catch HTTP error status codes.
+
 ## 4.7.0
 
 * Adds support to track scroll position changes.

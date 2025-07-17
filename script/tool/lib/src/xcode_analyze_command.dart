@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 import 'common/core.dart';
+import 'common/file_filters.dart';
+import 'common/flutter_command_utils.dart';
 import 'common/output_utils.dart';
 import 'common/package_looping_command.dart';
 import 'common/plugin_utils.dart';
@@ -16,6 +18,7 @@ class XcodeAnalyzeCommand extends PackageLoopingCommand {
     super.packagesDir, {
     super.processRunner,
     super.platform,
+    super.gitDir,
   }) : _xcode = Xcode(processRunner: processRunner, log: true) {
     argParser.addFlag(platformIOS, help: 'Analyze iOS');
     argParser.addFlag(platformMacOS, help: 'Analyze macOS');
@@ -46,6 +49,15 @@ class XcodeAnalyzeCommand extends PackageLoopingCommand {
       'Runs Xcode analysis on the iOS and/or macOS example apps.';
 
   @override
+  bool shouldIgnoreFile(String path) {
+    return isRepoLevelNonCodeImpactingFile(path) ||
+        isPackageSupportFile(path) ||
+        // These are part of the build, but don't affect native code analysis.
+        path.endsWith('/pubspec.yaml') ||
+        path.endsWith('.dart');
+  }
+
+  @override
   Future<void> initializeRun() async {
     if (!(getBoolArg(platformIOS) || getBoolArg(platformMacOS))) {
       printError('At least one platform flag must be provided.');
@@ -73,19 +85,21 @@ class XcodeAnalyzeCommand extends PackageLoopingCommand {
 
     final List<String> failures = <String>[];
     if (testIOS &&
-        !await _analyzePlugin(package, 'iOS', extraFlags: <String>[
-          '-destination',
-          'generic/platform=iOS Simulator',
-          if (minIOSVersion.isNotEmpty)
-            'IPHONEOS_DEPLOYMENT_TARGET=$minIOSVersion',
-        ])) {
+        !await _analyzePlugin(package, FlutterPlatform.ios,
+            extraFlags: <String>[
+              '-destination',
+              'generic/platform=iOS Simulator',
+              if (minIOSVersion.isNotEmpty)
+                'IPHONEOS_DEPLOYMENT_TARGET=$minIOSVersion',
+            ])) {
       failures.add('iOS');
     }
     if (testMacOS &&
-        !await _analyzePlugin(package, 'macOS', extraFlags: <String>[
-          if (minMacOSVersion.isNotEmpty)
-            'MACOSX_DEPLOYMENT_TARGET=$minMacOSVersion',
-        ])) {
+        !await _analyzePlugin(package, FlutterPlatform.macos,
+            extraFlags: <String>[
+              if (minMacOSVersion.isNotEmpty)
+                'MACOSX_DEPLOYMENT_TARGET=$minMacOSVersion',
+            ])) {
       failures.add('macOS');
     }
 
@@ -97,33 +111,55 @@ class XcodeAnalyzeCommand extends PackageLoopingCommand {
             multiplePlatformsRequested ? failures : <String>[]);
   }
 
-  /// Analyzes [plugin] for [platform], returning true if it passed analysis.
+  /// Analyzes [plugin] for [targetPlatform], returning true if it passed analysis.
   Future<bool> _analyzePlugin(
     RepositoryPackage plugin,
-    String platform, {
+    FlutterPlatform targetPlatform, {
     List<String> extraFlags = const <String>[],
   }) async {
+    final String platformString =
+        targetPlatform == FlutterPlatform.ios ? 'iOS' : 'macOS';
     bool passing = true;
     for (final RepositoryPackage example in plugin.getExamples()) {
+      // Unconditionally re-run build with --debug --config-only, to ensure that
+      // the project is in a debug state even if it was previously configured.
+      print('Running flutter build --config-only...');
+      final bool buildSuccess = await runConfigOnlyBuild(
+        example,
+        processRunner,
+        platform,
+        targetPlatform,
+        buildDebug: true,
+      );
+      if (!buildSuccess) {
+        printError('Unable to prepare native project files.');
+        passing = false;
+        continue;
+      }
+
       // Running tests and static analyzer.
       final String examplePath = getRelativePosixPath(example.directory,
           from: plugin.directory.parent);
-      print('Running $platform tests and analyzer for $examplePath...');
+      print('Running $platformString tests and analyzer for $examplePath...');
       final int exitCode = await _xcode.runXcodeBuild(
         example.directory,
-        actions: <String>['analyze'],
-        workspace: '${platform.toLowerCase()}/Runner.xcworkspace',
+        platformString,
+        // Clean before analyzing to remove cached swiftmodules from previous
+        // runs, which can cause conflicts.
+        actions: <String>['clean', 'analyze'],
+        workspace: '${platformString.toLowerCase()}/Runner.xcworkspace',
         scheme: 'Runner',
         configuration: 'Debug',
+        hostPlatform: platform,
         extraFlags: <String>[
           ...extraFlags,
           'GCC_TREAT_WARNINGS_AS_ERRORS=YES',
         ],
       );
       if (exitCode == 0) {
-        printSuccess('$examplePath ($platform) passed analysis.');
+        printSuccess('$examplePath ($platformString) passed analysis.');
       } else {
-        printError('$examplePath ($platform) failed analysis.');
+        printError('$examplePath ($platformString) failed analysis.');
         passing = false;
       }
     }

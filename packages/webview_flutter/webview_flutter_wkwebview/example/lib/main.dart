@@ -110,34 +110,34 @@ const String kLogExamplePage = '''
 
 const String kAlertTestPage = '''
 <!DOCTYPE html>
-<html>  
-   <head>     
-      <script type = "text/javascript">  
-            function showAlert(text) {	          
-	            alert(text);      
-            }  
-            
+<html>
+   <head>
+      <script type = "text/javascript">
+            function showAlert(text) {
+	            alert(text);
+            }
+
             function showConfirm(text) {
               var result = confirm(text);
               alert(result);
             }
-            
+
             function showPrompt(text, defaultText) {
               var inputString = prompt('Enter input', 'Default text');
-	            alert(inputString);            
-            }            
-      </script>       
-   </head>  
-     
-   <body>  
-      <p> Click the following button to see the effect </p>        
-      <form>  
+	            alert(inputString);
+            }
+      </script>
+   </head>
+
+   <body>
+      <p> Click the following button to see the effect </p>
+      <form>
         <input type = "button" value = "Alert" onclick = "showAlert('Test Alert');" />
-        <input type = "button" value = "Confirm" onclick = "showConfirm('Test Confirm');" />  
-        <input type = "button" value = "Prompt" onclick = "showPrompt('Test Prompt', 'Default Value');" />    
-      </form>       
-   </body>  
-</html>  
+        <input type = "button" value = "Confirm" onclick = "showConfirm('Test Confirm');" />
+        <input type = "button" value = "Prompt" onclick = "showPrompt('Test Prompt', 'Default Value');" />
+      </form>
+   </body>
+</html>
 ''';
 
 class WebViewExample extends StatefulWidget {
@@ -160,7 +160,6 @@ class _WebViewExampleState extends State<WebViewExample> {
       WebKitWebViewControllerCreationParams(allowsInlineMediaPlayback: true),
     )
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x80000000))
       ..setPlatformNavigationDelegate(
         PlatformNavigationDelegate(
           const PlatformNavigationDelegateCreationParams(),
@@ -217,15 +216,19 @@ Page resource error:
           );
           request.grant();
         },
-      )
-      ..loadRequest(LoadRequestParams(
-        uri: Uri.parse('https://flutter.dev'),
-      ))
-      ..setOnScrollPositionChange((ScrollPositionChange scrollPositionChange) {
+      );
+
+    // setBackgroundColor and setOnScrollPositionChange are not supported on
+    // macOS.
+    if (Platform.isIOS) {
+      _controller.setBackgroundColor(const Color(0x80000000));
+      _controller.setOnScrollPositionChange(
+          (ScrollPositionChange scrollPositionChange) {
         debugPrint(
           'Scroll position change to x = ${scrollPositionChange.x}, y = ${scrollPositionChange.y}',
         );
       });
+    }
   }
 
   @override
@@ -322,6 +325,7 @@ Page resource error:
 }
 
 enum MenuOptions {
+  loadFlutterDev,
   showUserAgent,
   listCookies,
   clearCookies,
@@ -359,6 +363,8 @@ class SampleMenu extends StatelessWidget {
       key: const ValueKey<String>('ShowPopupMenu'),
       onSelected: (MenuOptions value) {
         switch (value) {
+          case MenuOptions.loadFlutterDev:
+            _loadFlutterDev();
           case MenuOptions.showUserAgent:
             _onShowUserAgent();
           case MenuOptions.listCookies:
@@ -394,6 +400,10 @@ class SampleMenu extends StatelessWidget {
         }
       },
       itemBuilder: (BuildContext context) => <PopupMenuItem<MenuOptions>>[
+        const PopupMenuItem<MenuOptions>(
+          value: MenuOptions.loadFlutterDev,
+          child: Text('Load flutter.dev'),
+        ),
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.showUserAgent,
           child: Text('Show user agent'),
@@ -461,6 +471,12 @@ class SampleMenu extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _loadFlutterDev() {
+    return webViewController.loadRequest(LoadRequestParams(
+      uri: Uri.parse('https://flutter.dev'),
+    ));
   }
 
   Future<void> _onShowUserAgent() {

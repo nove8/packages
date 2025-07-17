@@ -8,9 +8,9 @@ the user.
 On supported devices, this includes authentication with biometrics such as
 fingerprint or facial recognition.
 
-|             | Android   | iOS   | Windows     |
-|-------------|-----------|-------|-------------|
-| **Support** | SDK 16+\* | 12.0+ | Windows 10+ |
+|             | Android   | iOS   | macOS  | Windows     |
+|-------------|-----------|-------|--------|-------------|
+| **Support** | SDK 21+\* | 12.0+ | 10.14+ | Windows 10+ |
 
 ## Usage
 
@@ -200,7 +200,7 @@ app has not been updated to use Face ID.
 
 ## Android Integration
 
-\* The plugin will build and run on SDK 16+, but `isDeviceSupported()` will
+\* The plugin will build and run on SDK 21+, but `isDeviceSupported()` will
 always return false before SDK 23 (Android 6.0).
 
 ### Activity Changes

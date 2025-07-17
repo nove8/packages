@@ -1,3 +1,25 @@
+## 5.9.0
+
+* Updates Google Sign-In SDK to 8.0+.
+
+## 5.8.1
+
+* Asserts that new `forceAccountName` parameter is null (not used in iOS).
+
+## 5.8.0
+
+* Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
+* Adds Swift Package Manager compatibility.
+
+## 5.7.8
+
+* Updates Pigeon for non-nullable collection type support.
+
+## 5.7.7
+
+* Fixes "callee requires a non-null parameter" analyzer warning.
+* Updates minimum supported SDK version to Flutter 3.19/Dart 3.3.
+
 ## 5.7.6
 
 * Upgrades GoogleSignIn iOS SDK to 7.1.

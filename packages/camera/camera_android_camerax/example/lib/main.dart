@@ -435,7 +435,8 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
                     min: _minAvailableExposureOffset,
                     max: _maxAvailableExposureOffset,
                     label: _currentExposureOffset.toString(),
-                    onChanged: _minAvailableExposureOffset ==
+                    onChanged: (_) {},
+                    onChangeEnd: _minAvailableExposureOffset ==
                             _maxAvailableExposureOffset
                         ? null
                         : setExposureOffset,
@@ -698,7 +699,6 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
           showInSnackBar('Audio access is restricted.');
         default:
           _showCameraException(e);
-          break;
       }
     }
 

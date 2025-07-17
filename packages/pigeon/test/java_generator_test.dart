@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'package:pigeon/ast.dart';
-import 'package:pigeon/java_generator.dart';
 import 'package:pigeon/pigeon.dart';
+import 'package:pigeon/src/ast.dart';
+import 'package:pigeon/src/java/java_generator.dart';
 import 'package:test/test.dart';
 
 const String DEFAULT_PACKAGE_NAME = 'test_package';
@@ -40,7 +40,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -71,7 +72,8 @@ void main() {
       enums: <Enum>[anEnum],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -85,7 +87,7 @@ void main() {
     expect(code, contains('    TWO_THREE_FOUR(1),'));
     expect(code, contains('    REMOTE_DB(2);'));
     expect(code, contains('final int index;'));
-    expect(code, contains('private Foobar(final int index) {'));
+    expect(code, contains('Foobar(final int index) {'));
     expect(code, contains('      this.index = index;'));
   });
 
@@ -107,8 +109,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions =
-        JavaOptions(className: 'Messages', package: 'com.google.foobar');
+    const InternalJavaOptions javaOptions = InternalJavaOptions(
+        className: 'Messages', package: 'com.google.foobar', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -118,51 +120,56 @@ void main() {
     );
     final String code = sink.toString();
     expect(code, contains('package com.google.foobar;'));
-    expect(code, contains('ArrayList<Object> toList()'));
   });
 
   test('gen one host api', () {
-    final Root root = Root(apis: <Api>[
-      AstHostApi(name: 'Api', methods: <Method>[
-        Method(
-          name: 'doSomething',
-          location: ApiLocation.host,
-          parameters: <Parameter>[
-            Parameter(
-                type: TypeDeclaration(
-                  baseName: 'Input',
-                  associatedClass: emptyClass,
-                  isNullable: false,
-                ),
-                name: '')
-          ],
-          returnType: TypeDeclaration(
-            baseName: 'Output',
-            associatedClass: emptyClass,
-            isNullable: false,
-          ),
-        )
-      ])
-    ], classes: <Class>[
-      Class(name: 'Input', fields: <NamedType>[
-        NamedType(
-            type: const TypeDeclaration(
-              baseName: 'String',
-              isNullable: true,
+    final Root root = Root(
+      apis: <Api>[
+        AstHostApi(name: 'Api', methods: <Method>[
+          Method(
+            name: 'doSomething',
+            location: ApiLocation.host,
+            parameters: <Parameter>[
+              Parameter(
+                  type: TypeDeclaration(
+                    baseName: 'Input',
+                    associatedClass: emptyClass,
+                    isNullable: false,
+                  ),
+                  name: '')
+            ],
+            returnType: TypeDeclaration(
+              baseName: 'Output',
+              associatedClass: emptyClass,
+              isNullable: false,
             ),
-            name: 'input')
-      ]),
-      Class(name: 'Output', fields: <NamedType>[
-        NamedType(
-            type: const TypeDeclaration(
-              baseName: 'String',
-              isNullable: true,
-            ),
-            name: 'output')
-      ])
-    ], enums: <Enum>[]);
+          )
+        ])
+      ],
+      classes: <Class>[
+        Class(name: 'Input', fields: <NamedType>[
+          NamedType(
+              type: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: true,
+              ),
+              name: 'input')
+        ]),
+        Class(name: 'Output', fields: <NamedType>[
+          NamedType(
+              type: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: true,
+              ),
+              name: 'output')
+        ])
+      ],
+      enums: <Enum>[],
+      containsHostApi: true,
+    );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -187,7 +194,6 @@ void main() {
         contains(RegExp(
             r'@NonNull\s*protected static ArrayList<Object> wrapError\(@NonNull Throwable exception\)')));
     expect(code, isNot(contains('ArrayList ')));
-    expect(code, isNot(contains('ArrayList<>')));
   });
 
   test('all the simple datatypes header', () {
@@ -245,7 +251,8 @@ void main() {
     ], enums: <Enum>[]);
 
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -305,7 +312,8 @@ void main() {
       ])
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -347,7 +355,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -389,7 +398,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -430,7 +440,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -468,7 +479,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -494,7 +506,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -519,7 +532,8 @@ void main() {
       ]),
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -562,7 +576,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -575,11 +590,7 @@ void main() {
     expect(code, contains('public static final class Outer'));
     expect(code, contains('public static final class Nested'));
     expect(code, contains('private @Nullable Nested nested;'));
-    expect(
-        code,
-        contains(
-            '(nested == null) ? null : Nested.fromList((ArrayList<Object>) nested)'));
-    expect(code, contains('add((nested == null) ? null : nested.toList());'));
+    expect(code, contains('add(nested);'));
   });
 
   test('gen one async Host Api', () {
@@ -624,7 +635,8 @@ void main() {
       ])
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -686,7 +698,8 @@ void main() {
       ])
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -726,7 +739,8 @@ void main() {
       enums: <Enum>[anEnum],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -740,15 +754,11 @@ void main() {
     expect(code, contains('    TWO_THREE_FOUR(1),'));
     expect(code, contains('    REMOTE_DB(2);'));
     expect(code, contains('final int index;'));
-    expect(code, contains('private Enum1(final int index) {'));
+    expect(code, contains('Enum1(final int index) {'));
     expect(code, contains('      this.index = index;'));
 
-    expect(code,
-        contains('toListResult.add(enum1 == null ? null : enum1.index);'));
-    expect(
-        code,
-        contains(
-            'pigeonResult.setEnum1(enum1 == null ? null : Enum1.values()[(int) enum1])'));
+    expect(code, contains('toListResult.add(enum1);'));
+    expect(code, contains('pigeonResult.setEnum1((Enum1) enum1);'));
   });
 
   test('primitive enum host', () {
@@ -776,7 +786,8 @@ void main() {
       ])
     ]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -789,7 +800,12 @@ void main() {
     expect(
         code,
         contains(
-            'Foo fooArg = args.get(0) == null ? null : Foo.values()[(int) args.get(0)];'));
+            'return value == null ? null : Foo.values()[((Long) value).intValue()];'));
+    expect(
+        code,
+        contains(
+            'writeValue(stream, value == null ? null : ((Foo) value).index);'));
+    expect(code, contains('Foo fooArg = (Foo) args.get(0);'));
   });
 
   Iterable<String> makeIterable(String string) sync* {
@@ -799,9 +815,10 @@ void main() {
   test('header', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    final JavaOptions javaOptions = JavaOptions(
+    final InternalJavaOptions javaOptions = InternalJavaOptions(
       className: 'Messages',
       copyrightHeader: makeIterable('hello world'),
+      javaOut: '',
     );
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
@@ -834,7 +851,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -868,7 +886,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -905,7 +924,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -941,7 +961,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -973,7 +994,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1006,7 +1028,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1037,7 +1060,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1047,10 +1071,7 @@ void main() {
     );
     final String code = sink.toString();
     expect(code, contains('public void doit(@NonNull Result<Long> result)'));
-    expect(
-        code,
-        contains(
-            'Long output = listReply.get(0) == null ? null : ((Number) listReply.get(0)).longValue();'));
+    expect(code, contains('Long output = (Long) listReply.get(0);'));
   });
 
   test('host multiple args', () {
@@ -1074,7 +1095,8 @@ void main() {
       ])
     ], classes: <Class>[], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1087,12 +1109,9 @@ void main() {
     expect(code, contains('Long add(@NonNull Long x, @NonNull Long y)'));
     expect(code,
         contains('ArrayList<Object> args = (ArrayList<Object>) message;'));
-    expect(code, contains('Number xArg = (Number) args.get(0)'));
-    expect(code, contains('Number yArg = (Number) args.get(1)'));
-    expect(
-        code,
-        contains(
-            'Long output = api.add((xArg == null) ? null : xArg.longValue(), (yArg == null) ? null : yArg.longValue())'));
+    expect(code, contains('Long xArg = (Long) args.get(0)'));
+    expect(code, contains('Long yArg = (Long) args.get(1)'));
+    expect(code, contains('Long output = api.add(xArg, yArg)'));
   });
 
   test('if host argType is Object not cast', () {
@@ -1112,7 +1131,8 @@ void main() {
       ])
     ], classes: <Class>[], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Api');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Api', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1145,7 +1165,8 @@ void main() {
       ])
     ], classes: <Class>[], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1164,7 +1185,7 @@ void main() {
     expect(
         code,
         contains(RegExp(
-            r'channel.send\(\s*new ArrayList<Object>\(Arrays.asList\(xArg, yArg\)\),\s*channelReply ->')));
+            r'channel.send\(\s*new ArrayList<>\(Arrays.asList\(xArg, yArg\)\),\s*channelReply ->')));
   });
 
   test('flutter single args', () {
@@ -1184,7 +1205,8 @@ void main() {
       ])
     ], classes: <Class>[], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1196,7 +1218,7 @@ void main() {
     expect(
         code,
         contains(RegExp(
-            r'channel.send\(\s*new ArrayList<Object>\(Collections.singletonList\(xArg\)\),\s*channelReply ->')));
+            r'channel.send\(\s*new ArrayList<>\(Collections.singletonList\(xArg\)\),\s*channelReply ->')));
   });
 
   test('return nullable host', () {
@@ -1217,7 +1239,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1248,7 +1271,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1283,7 +1307,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1317,7 +1342,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1355,7 +1381,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1385,8 +1412,11 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions =
-        JavaOptions(className: 'Messages', useGeneratedAnnotation: true);
+    const InternalJavaOptions javaOptions = InternalJavaOptions(
+      className: 'Messages',
+      useGeneratedAnnotation: true,
+      javaOut: '',
+    );
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1409,7 +1439,8 @@ void main() {
       enums: <Enum>[],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1497,7 +1528,8 @@ void main() {
       ],
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1516,47 +1548,7 @@ void main() {
     expect(code, isNot(contains('*//')));
   });
 
-  test("doesn't create codecs if no custom datatypes", () {
-    final Root root = Root(
-      apis: <Api>[
-        AstFlutterApi(
-          name: 'Api',
-          methods: <Method>[
-            Method(
-              name: 'method',
-              location: ApiLocation.flutter,
-              returnType: const TypeDeclaration.voidDeclaration(),
-              parameters: <Parameter>[
-                Parameter(
-                  name: 'field',
-                  type: const TypeDeclaration(
-                    baseName: 'int',
-                    isNullable: true,
-                  ),
-                ),
-              ],
-            )
-          ],
-        )
-      ],
-      classes: <Class>[],
-      enums: <Enum>[],
-    );
-    final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
-    const JavaGenerator generator = JavaGenerator();
-    generator.generate(
-      javaOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
-    final String code = sink.toString();
-    expect(code, isNot(contains(' extends StandardMessageCodec')));
-    expect(code, contains('StandardMessageCodec'));
-  });
-
-  test('creates custom codecs if custom datatypes present', () {
+  test('creates custom codecs', () {
     final Root root = Root(apis: <Api>[
       AstFlutterApi(name: 'Api', methods: <Method>[
         Method(
@@ -1598,7 +1590,8 @@ void main() {
       ])
     ], enums: <Enum>[]);
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1616,9 +1609,11 @@ void main() {
       apis: <Api>[api],
       classes: <Class>[],
       enums: <Enum>[],
+      containsHostApi: true,
     );
     final StringBuffer sink = StringBuffer();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     const JavaGenerator generator = JavaGenerator();
     generator.generate(
       javaOptions,
@@ -1655,10 +1650,12 @@ void main() {
       ],
       classes: <Class>[],
       enums: <Enum>[],
+      containsFlutterApi: true,
     );
     final StringBuffer sink = StringBuffer();
     const JavaGenerator generator = JavaGenerator();
-    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    const InternalJavaOptions javaOptions =
+        InternalJavaOptions(className: 'Messages', javaOut: '');
     generator.generate(
       javaOptions,
       root,

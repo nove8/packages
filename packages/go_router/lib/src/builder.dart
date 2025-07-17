@@ -98,7 +98,8 @@ class RouteBuilder {
   Widget build(
     BuildContext context,
     RouteMatchList matchList,
-    bool routerNeglect,
+    bool routerNeglect, // TODO(tolo): This parameter is not used and should be
+    // removed in the next major version.
   ) {
     if (matchList.isEmpty && !matchList.isError) {
       // The build method can be called before async redirect finishes. Build a
@@ -109,6 +110,8 @@ class RouteBuilder {
     return builderWithNav(
       context,
       _CustomNavigator(
+        // The state needs to persist across rebuild.
+        key: GlobalObjectKey(configuration.navigatorKey.hashCode),
         navigatorKey: configuration.navigatorKey,
         observers: observers,
         navigatorRestorationId: restorationScopeId,
@@ -118,24 +121,25 @@ class RouteBuilder {
         configuration: configuration,
         errorBuilder: errorBuilder,
         errorPageBuilder: errorPageBuilder,
+        requestFocus: requestFocus,
       ),
     );
   }
 }
 
 class _CustomNavigator extends StatefulWidget {
-  const _CustomNavigator({
-    super.key,
-    required this.navigatorKey,
-    required this.observers,
-    required this.navigatorRestorationId,
-    required this.onPopPageWithRouteMatch,
-    required this.matchList,
-    required this.matches,
-    required this.configuration,
-    required this.errorBuilder,
-    required this.errorPageBuilder,
-  });
+  const _CustomNavigator(
+      {super.key,
+      required this.navigatorKey,
+      required this.observers,
+      required this.navigatorRestorationId,
+      required this.onPopPageWithRouteMatch,
+      required this.matchList,
+      required this.matches,
+      required this.configuration,
+      required this.errorBuilder,
+      required this.errorPageBuilder,
+      required this.requestFocus});
 
   final GlobalKey<NavigatorState> navigatorKey;
   final List<NavigatorObserver> observers;
@@ -152,6 +156,7 @@ class _CustomNavigator extends StatefulWidget {
   final String? navigatorRestorationId;
   final GoRouterWidgetBuilder? errorBuilder;
   final GoRouterPageBuilder? errorPageBuilder;
+  final bool requestFocus;
 
   @override
   State<StatefulWidget> createState() => _CustomNavigatorState();
@@ -270,23 +275,29 @@ class _CustomNavigatorState extends State<_CustomNavigator> {
       route: match.route,
       routerState: state,
       navigatorKey: navigatorKey,
+      match: match,
       routeMatchList: widget.matchList,
-      navigatorBuilder:
-          (List<NavigatorObserver>? observers, String? restorationScopeId) {
+      navigatorBuilder: (
+        GlobalKey<NavigatorState> navigatorKey,
+        ShellRouteMatch match,
+        RouteMatchList matchList,
+        List<NavigatorObserver>? observers,
+        String? restorationScopeId,
+      ) {
         return _CustomNavigator(
-          // The state needs to persist across rebuild.
-          key: GlobalObjectKey(navigatorKey.hashCode),
-          navigatorRestorationId: restorationScopeId,
-          navigatorKey: navigatorKey,
-          matches: match.matches,
-          matchList: widget.matchList,
-          configuration: widget.configuration,
-          observers: observers ?? const <NavigatorObserver>[],
-          onPopPageWithRouteMatch: widget.onPopPageWithRouteMatch,
-          // This is used to recursively build pages under this shell route.
-          errorBuilder: widget.errorBuilder,
-          errorPageBuilder: widget.errorPageBuilder,
-        );
+            // The state needs to persist across rebuild.
+            key: GlobalObjectKey(navigatorKey.hashCode),
+            navigatorRestorationId: restorationScopeId,
+            navigatorKey: navigatorKey,
+            matches: match.matches,
+            matchList: matchList,
+            configuration: widget.configuration,
+            observers: observers ?? const <NavigatorObserver>[],
+            onPopPageWithRouteMatch: widget.onPopPageWithRouteMatch,
+            // This is used to recursively build pages under this shell route.
+            errorBuilder: widget.errorBuilder,
+            errorPageBuilder: widget.errorPageBuilder,
+            requestFocus: widget.requestFocus);
       },
     );
     final Page<Object?>? page =
@@ -428,6 +439,7 @@ class _CustomNavigatorState extends State<_CustomNavigator> {
         controller: _controller!,
         child: Navigator(
           key: widget.navigatorKey,
+          requestFocus: widget.requestFocus,
           restorationScopeId: widget.navigatorRestorationId,
           pages: _pages!,
           observers: widget.observers,

@@ -7,25 +7,44 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(PigeonOptions(
   dartOut: 'lib/src/messages.g.dart',
   dartTestOut: 'test/test_api.g.dart',
-  objcHeaderOut: 'darwin/Classes/messages.g.h',
-  objcSourceOut: 'darwin/Classes/messages.g.m',
+  objcHeaderOut:
+      'darwin/video_player_avfoundation/Sources/video_player_avfoundation/include/video_player_avfoundation/messages.g.h',
+  objcSourceOut:
+      'darwin/video_player_avfoundation/Sources/video_player_avfoundation/messages.g.m',
   objcOptions: ObjcOptions(
     prefix: 'FVP',
+    headerIncludePath: './include/video_player_avfoundation/messages.g.h',
   ),
   copyrightHeader: 'pigeons/copyright.txt',
 ))
+
+/// Pigeon equivalent of VideoViewType.
+enum PlatformVideoViewType {
+  textureView,
+  platformView,
+}
+
+/// Information passed to the platform view creation.
+class PlatformVideoViewCreationParams {
+  const PlatformVideoViewCreationParams({
+    required this.playerId,
+  });
+
+  final int playerId;
+}
+
 class CreationOptions {
-  CreationOptions({required this.httpHeaders});
+  CreationOptions({
+    required this.httpHeaders,
+    required this.viewType,
+  });
+
   String? asset;
   String? uri;
   String? packageName;
   String? formatHint;
-  Map<String?, String?> httpHeaders;
-}
-
-class MixWithOthersMessage {
-  MixWithOthersMessage(this.mixWithOthers);
-  bool mixWithOthers;
+  Map<String, String> httpHeaders;
+  PlatformVideoViewType viewType;
 }
 
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
@@ -36,22 +55,22 @@ abstract class AVFoundationVideoPlayerApi {
   // Creates a new player and returns its ID.
   int create(CreationOptions creationOptions);
   @ObjCSelector('disposePlayer:')
-  void dispose(int textureId);
+  void dispose(int playerId);
   @ObjCSelector('setLooping:forPlayer:')
-  void setLooping(bool isLooping, int textureId);
+  void setLooping(bool isLooping, int playerId);
   @ObjCSelector('setVolume:forPlayer:')
-  void setVolume(double volume, int textureId);
+  void setVolume(double volume, int playerId);
   @ObjCSelector('setPlaybackSpeed:forPlayer:')
-  void setPlaybackSpeed(double speed, int textureId);
+  void setPlaybackSpeed(double speed, int playerId);
   @ObjCSelector('playPlayer:')
-  void play(int textureId);
+  void play(int playerId);
   @ObjCSelector('positionForPlayer:')
-  int getPosition(int textureId);
+  int getPosition(int playerId);
   @async
   @ObjCSelector('seekTo:forPlayer:')
-  void seekTo(int position, int textureId);
+  void seekTo(int position, int playerId);
   @ObjCSelector('pausePlayer:')
-  void pause(int textureId);
+  void pause(int playerId);
   @ObjCSelector('setMixWithOthers:')
   void setMixWithOthers(bool mixWithOthers);
 }

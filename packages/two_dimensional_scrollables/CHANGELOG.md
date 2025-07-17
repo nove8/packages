@@ -1,3 +1,29 @@
+## 0.3.4
+
+* Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
+* Fixes a bug where collapsing a node in a TreeView with other offscreen nodes would dereference a null value.
+
+## 0.3.3
+
+* Fixes an issue where collapsing nodes in the TreeView didn't work correctly.
+
+## 0.3.2
+
+* Fixes a bug where the TreeView would not update correctly when the animation duration is zero.
+
+## 0.3.1
+
+* Adds generics to the callbacks and builders of TreeView.
+
+## 0.3.0
+
+* Adds new TreeView widget and associated classes.
+* New example application for exploring both Trees and Tables.
+
+## 0.2.1
+
+* Refactors TableSpans to use basic Span classes. Clean up for incoming TreeView.
+
 ## 0.2.0
 
 * Adds support for infinite rows and columns in TableView.
