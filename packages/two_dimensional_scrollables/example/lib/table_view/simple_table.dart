@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
+// Copyright 2013 The Flutter Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -156,10 +156,10 @@ class _TableExampleState extends State<TableExample> {
           recognizerFactories: <Type, GestureRecognizerFactory>{
             TapGestureRecognizer:
                 GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-              () => TapGestureRecognizer(),
-              (TapGestureRecognizer t) =>
-                  t.onTap = () => print('Tap column $index'),
-            ),
+                  () => TapGestureRecognizer(),
+                  (TapGestureRecognizer t) =>
+                      t.onTap = () => print('Tap column $index'),
+                ),
           },
         );
       case 1:
@@ -208,10 +208,10 @@ class _TableExampleState extends State<TableExample> {
           recognizerFactories: <Type, GestureRecognizerFactory>{
             TapGestureRecognizer:
                 GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-              () => TapGestureRecognizer(),
-              (TapGestureRecognizer t) =>
-                  t.onTap = () => print('Tap row $index'),
-            ),
+                  () => TapGestureRecognizer(),
+                  (TapGestureRecognizer t) =>
+                      t.onTap = () => print('Tap row $index'),
+                ),
           },
         );
       case 1:

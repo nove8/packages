@@ -1,5 +1,16 @@
 ## NEXT
 
+* Updates minimum supported SDK version to Flutter 3.32/Dart 3.8.
+
+## 1.2.1
+
+* Fixes README description of plugin suggesting that only Android and iOS is supported.
+* Updates minimum supported SDK version to Flutter 3.29/Dart 3.7.
+* Updates README to reflect that only Android API 24+ is supported.
+
+## 1.2.0
+
+* Adds `pickMultiVideo` to allow selecting multiple videos from the gallery.
 * Updates minimum supported SDK version to Flutter 3.27/Dart 3.6.
 
 ## 1.1.2

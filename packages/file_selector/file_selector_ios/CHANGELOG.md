@@ -1,5 +1,15 @@
-## NEXT
+## 0.5.3+4
 
+* Updates to Pigeon 26.
+
+## 0.5.3+3
+
+* Updates minimum supported version to iOS 13.
+* Updates minimum supported SDK version to Flutter 3.35/Dart 3.9.
+
+## 0.5.3+2
+
+* Updates to Pigeon 25.5.0.
 * Updates minimum supported SDK version to Flutter 3.27/Dart 3.6.
 
 ## 0.5.3+1
