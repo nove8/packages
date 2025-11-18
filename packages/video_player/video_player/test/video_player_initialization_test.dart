@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
+// Copyright 2013 The Flutter Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,8 +15,8 @@ void main() {
   late FakeVideoPlayerPlatform fakeVideoPlayerPlatform;
 
   setUp(() {
-    VideoPlayerPlatform.instance =
-        fakeVideoPlayerPlatform = FakeVideoPlayerPlatform();
+    VideoPlayerPlatform.instance = fakeVideoPlayerPlatform =
+        FakeVideoPlayerPlatform();
   });
 
   test('plugin initialized', () async {
@@ -36,9 +36,7 @@ void main() {
 
     final VideoPlayerController controller = VideoPlayerController.networkUrl(
       Uri.parse('https://127.0.0.1'),
-      videoPlayerOptions: VideoPlayerOptions(
-        webOptions: expected,
-      ),
+      videoPlayerOptions: VideoPlayerOptions(webOptions: expected),
     );
     await controller.initialize();
 

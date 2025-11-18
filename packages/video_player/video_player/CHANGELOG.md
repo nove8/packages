@@ -1,3 +1,13 @@
+## NEXT
+
+* Updates minimum supported SDK version to Flutter 3.32/Dart 3.8.
+
+## 2.10.1
+
+* Fixes a bug where the `VideoPlayer` widget and `VideoProgressIndicator` widget would stop updating after GlobalKey reparenting.
+* Updates the `VideoProgressIndicator` widget to handle zero-duration videos.
+* Updates minimum supported SDK version to Flutter 3.29/Dart 3.7.
+
 ## 2.10.0
 
 * Adds support for platform views as an optional way of displaying a video on Android and iOS.
