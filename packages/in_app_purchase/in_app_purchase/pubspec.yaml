@@ -31,7 +31,7 @@ dependencies:
     git:
       url: https://github.com/nove8/packages.git
       path: packages/in_app_purchase/in_app_purchase_storekit
-      ref: in_app_purchase_storekit-v0.4.6+2-nove8
+      ref: in_app_purchase_storekit-v0.4.8-nove8
 
 dev_dependencies:
   flutter_test:
